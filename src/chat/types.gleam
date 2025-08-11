@@ -1,5 +1,9 @@
 import gleam/option.{type Option}
 
+pub type Model {
+  Model(name: String, temperature: Float, stream: Bool)
+}
+
 // Audio
 pub type Audio {
   Audio(data: String, expires_at: Int, id: String, transcript: String)
