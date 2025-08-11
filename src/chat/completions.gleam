@@ -23,13 +23,15 @@ pub fn create(
   let model_name =
     json.object([#("model", json.string(model.name))])
     |> json.to_string()
-    |> string.replace(each: "}", with: ",")
+    |> string.drop_end(up_to: 1)
+    <> ","
 
   let temperature =
     json.object([#("temperature", json.float(model.temperature))])
     |> json.to_string()
     |> string.drop_start(up_to: 1)
-    |> string.replace(each: "}", with: ",")
+    |> string.drop_end(up_to: 1)
+    <> ","
 
   // TODO: handle streaming. For now set it to false
   let stream =
@@ -37,6 +39,7 @@ pub fn create(
     |> json.to_string()
     |> string.drop_start(up_to: 1)
     |> string.drop_end(up_to: 1)
+    <> ","
 
   // TODO: handle multiple messages
   let messages =
