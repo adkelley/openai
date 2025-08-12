@@ -3,7 +3,6 @@ import gleam/http/request
 import gleam/httpc
 import gleam/json
 import gleam/list
-import gleam/string
 
 import chat/decoder
 import chat/types.{type Model, Model}
@@ -20,30 +19,13 @@ pub fn create(
   let assert Ok(base_req) =
     request.to("https://api.openai.com/v1/chat/completions")
 
-  let model_name =
-    json.object([#("model", json.string(model.name))])
-    |> json.to_string()
-    |> string.drop_end(up_to: 1)
-    <> ","
-
-  let temperature =
-    json.object([#("temperature", json.float(model.temperature))])
-    |> json.to_string()
-    |> string.drop_start(up_to: 1)
-    |> string.drop_end(up_to: 1)
-    <> ","
-
-  // TODO: handle streaming. For now set it to false
-  let stream =
-    json.object([#("stream", json.bool(False))])
-    |> json.to_string()
-    |> string.drop_start(up_to: 1)
-    |> string.drop_end(up_to: 1)
-    <> ","
-
-  // TODO: handle multiple messages
-  let messages =
+  let body =
     json.object([
+      #("model", json.string(model.name)),
+      #("temperature", json.float(model.temperature)),
+      // TODO: handle streaming
+      #("stream", json.bool(False)),
+      // TODO: handle multiple messages
       #(
         "messages",
         json.preprocessed_array([
@@ -54,16 +36,13 @@ pub fn create(
         ]),
       ),
     ])
-    |> json.to_string
-    |> string.drop_start(up_to: 1)
-
-  let body_string = model_name <> temperature <> stream <> messages
+    |> json.to_string()
 
   let req =
     base_req
     |> request.prepend_header("Content-Type", "application/json")
     |> request.prepend_header("Authorization", "Bearer " <> client)
-    |> request.set_body(body_string)
+    |> request.set_body(body)
     |> request.set_method(http.Post)
 
   let assert Ok(resp) = httpc.send(req)
