@@ -46,6 +46,9 @@ pub type Message {
   )
 }
 
+pub type Messages =
+  List(Message)
+
 pub type BytesLogprobToken {
   BytesLogprobToken(bytes: Option(List(Int)), logprob: Float, token: String)
 }
