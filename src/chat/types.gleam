@@ -122,3 +122,19 @@ pub type Completion {
     system_fingerprint: String,
   )
 }
+
+/// This type represents all the reasons for why openai could fail, separate from HTTP related
+pub type OpenaiError {
+  /// Bad Request: The request was invalid.
+  BadRequest
+  /// Bad Response: The response was invalid json or missing altogether.
+  BadResponse
+  /// Unauthorized: Authentication is required.
+  Unauthorized
+  /// Forbidden: The server refuses to authorize the request.
+  Forbidden
+  /// Too Many Requests: Rate limit exceeded.
+  TooManyRequests
+  /// Internal Server Error: An error occurred on the server.
+  InternalServerError
+}

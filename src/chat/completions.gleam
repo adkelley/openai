@@ -4,11 +4,12 @@ import gleam/httpc
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{None}
+import gleam/result
 
 import chat/decoder
 import chat/types.{
-  type Message, type Model, type Role, Assistant, Message, Model, OtherRole,
-  System, Tool, User,
+  type Message, type Model, type OpenaiError, type Role, Assistant, BadRequest,
+  BadResponse, Message, Model, OtherRole, System, Tool, User,
 }
 
 pub fn default_model() -> Model {
@@ -33,7 +34,7 @@ pub fn create(
   client client: String,
   model model: Model,
   messages messages: List(Message),
-) {
+) -> Result(String, OpenaiError) {
   let msg_to_json = fn(role: String, content: String) -> List(Json) {
     [
       json.object([
@@ -42,8 +43,9 @@ pub fn create(
       ]),
     ]
   }
-  let assert Ok(base_req) =
-    request.to("https://api.openai.com/v1/chat/completions")
+  let completions_url = "https://api.openai.com/v1/chat/completions"
+  // I think this assert is Ok
+  let assert Ok(base_req) = request.to(completions_url)
 
   let body =
     json.object([
@@ -77,9 +79,17 @@ pub fn create(
     |> request.set_body(body)
     |> request.set_method(http.Post)
 
-  let assert Ok(resp) = httpc.send(req)
-  let assert Ok(completion) =
+  // TODO The httpc error surface area is too narrow, refine the error
+  use resp <- result.try(httpc.send(req) |> result.replace_error(BadRequest))
+  use completion <- result.try(
     json.parse(resp.body, decoder.chat_completion_decoder())
-  let assert Ok(choice) = list.first(completion.choices)
-  choice.message.content
+    |> result.replace_error(BadResponse),
+  )
+  use choice <- result.try(
+    list.first(completion.choices) |> result.replace_error(BadResponse),
+  )
+  Ok(choice.message.content)
 }
+// TODO Support streaming
+// TODO Support more refined error handling
+// TODO break the http, parsing into separate modules?
