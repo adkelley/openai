@@ -9,7 +9,7 @@ packages = [
   { name = "gleam_json", version = "3.0.2", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_json", source = "hex", outer_checksum = "874FA3C3BB6E22DD2BB111966BD40B3759E9094E05257899A7C08F5DE77EC049" },
   { name = "gleam_stdlib", version = "0.62.1", build_tools = ["gleam"], requirements = [], otp_app = "gleam_stdlib", source = "hex", outer_checksum = "0080706D3A5A9A36C40C68481D1D231D243AF602E6D2A2BE67BA8F8F4DFF45EC" },
   { name = "gleeunit", version = "1.6.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleeunit", source = "hex", outer_checksum = "FDC68A8C492B1E9B429249062CD9BAC9B5538C6FBF584817205D0998C42E1DAC" },
-  { name = "openai", version = "0.1.0", build_tools = ["gleam"], requirements = ["envoy", "gleam_http", "gleam_httpc", "gleam_json", "gleam_stdlib"], source = "git", repo = "https://github.com/adkelley/openai", commit = "9e05361ffe8fe92b2ba12feebac0914c7b137614" },
+  { name = "openai", version = "0.1.0", build_tools = ["gleam"], requirements = ["envoy", "gleam_http", "gleam_httpc", "gleam_json", "gleam_stdlib"], source = "git", repo = "https://github.com/adkelley/openai", commit = "48b87a216f0625d45a3d9fee7c5fd7491b4948e0" },
 ]
 
 [requirements]
