@@ -1,6 +1,7 @@
 import chat/types
 import gleam/dynamic/decode
 import gleam/option.{None, Some}
+import gleam/string
 
 fn role_type_decoder() {
   use role_string <- decode.then(decode.string)
@@ -96,16 +97,21 @@ fn content_decoder() {
   decode.success(types.Content(bytes:, logprob:, token:, top_logprobs:))
 }
 
-fn logprob_decoder() {
+fn logprobs_decoder() {
   use content <- decode.field("content", decode.list(content_decoder()))
   use refusal <- decode.field("refusal", decode.list(refusal_decoder()))
   decode.success(types.Logprob(content:, refusal:))
 }
 
+// This is where the content resides
 fn completion_choice_decoder() {
-  use finish_reason <- decode.field("finish_reason", decode.string)
+  // use finish_reason <- decode.field("finish_reason", decode.string)
+  use finish_reason <- decode.field(
+    "finish_reason",
+    decode.optional(decode.string),
+  )
   use index <- decode.field("index", decode.int)
-  use logprobs <- decode.field("logprobs", decode.optional(logprob_decoder()))
+  use logprobs <- decode.field("logprobs", decode.optional(logprobs_decoder()))
   use message <- decode.field("message", message_decoder())
   decode.success(types.CompletionChoice(
     index:,
@@ -182,5 +188,54 @@ pub fn chat_completion_decoder() {
     service_tier:,
     system_fingerprint:,
     usage:,
+  ))
+}
+
+// Streaming
+fn delta_decoder() {
+  // use finish_reason <- decode.field("finish_reason", decode.string)
+  use role <- decode.optional_field("role", "assistant", decode.string)
+  use content <- decode.optional_field("content", "", decode.string)
+  decode.success(types.Delta(content:, role:))
+}
+
+fn completion_choice_chunk_decoder() {
+  // use finish_reason <- decode.field("finish_reason", decode.string)
+  use index <- decode.field("index", decode.int)
+  use delta <- decode.field("delta", delta_decoder())
+  use logprobs <- decode.field("logprobs", decode.optional(logprobs_decoder()))
+  use finish_reason <- decode.field(
+    "finish_reason",
+    decode.optional(decode.string),
+  )
+  decode.success(types.CompletionChoiceChunk(
+    index:,
+    delta:,
+    logprobs:,
+    finish_reason:,
+  ))
+}
+
+pub fn chat_completion_chunk_decoder() {
+  use id <- decode.field("id", decode.string)
+  use object <- decode.field("object", decode.string)
+  use created <- decode.field("created", decode.int)
+  use choices <- decode.field(
+    "choices",
+    decode.list(completion_choice_chunk_decoder()),
+  )
+  use model <- decode.field("model", decode.string)
+  use service_tier <- decode.field("service_tier", decode.string)
+  use obfuscation <- decode.field("obfuscation", decode.string)
+  use system_fingerprint <- decode.field("system_fingerprint", decode.string)
+  decode.success(types.CompletionChunk(
+    choices:,
+    id:,
+    object:,
+    created:,
+    model:,
+    service_tier:,
+    system_fingerprint:,
+    obfuscation:,
   ))
 }

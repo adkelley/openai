@@ -80,7 +80,7 @@ pub type CompletionChoice {
   CompletionChoice(
     index: Int,
     message: Message,
-    finish_reason: String,
+    finish_reason: Option(String),
     logprobs: Option(Logprob),
   )
 }
@@ -123,6 +123,35 @@ pub type Completion {
   )
 }
 
+// streamed response from OpenAI /v1/chat/completions
+pub type Delta {
+  Delta(role: String, content: String)
+}
+
+pub type CompletionChoiceChunk {
+  CompletionChoiceChunk(
+    index: Int,
+    delta: Delta,
+    logprobs: Option(Logprob),
+    finish_reason: Option(String),
+  )
+}
+
+pub type CompletionChunk {
+  CompletionChunk(
+    id: String,
+    object: String,
+    created: Int,
+    model: String,
+    choices: List(CompletionChoiceChunk),
+    service_tier: String,
+    system_fingerprint: String,
+    obfuscation: String,
+  )
+}
+
+// Streaming 
+// 
 /// This type represents all the reasons for why openai could fail, separate from HTTP related
 pub type OpenaiError {
   /// Bad Request: The request was invalid.
