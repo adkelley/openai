@@ -1,7 +1,6 @@
-import chat/types
 import gleam/dynamic/decode
 import gleam/option.{None, Some}
-import gleam/string
+import openai/chat/types
 
 fn role_type_decoder() {
   use role_string <- decode.then(decode.string)

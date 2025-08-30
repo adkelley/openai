@@ -8,12 +8,12 @@ import gleam/option.{None}
 import gleam/result
 import gleam/string
 
-import chat/decoder
-import chat/error.{type OpenaiError, BadResponse}
-import chat/types.{
+import openai/chat/decoder
+import openai/chat/types.{
   type Message, type Model, type Role, Assistant, Message, Model, OtherRole,
   System, Tool, User,
 }
+import openai/error.{type OpenaiError, BadResponse}
 
 const completions_url = "https://api.openai.com/v1/chat/completions"
 
