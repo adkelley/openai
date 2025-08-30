@@ -1,3 +1,5 @@
+// https://platform.openai.com/docs/api-reference/chat
+// 
 import gleam/option.{type Option}
 
 pub type Model {
