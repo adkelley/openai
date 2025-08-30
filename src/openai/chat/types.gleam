@@ -112,8 +112,8 @@ pub type Usage {
 }
 
 // Full response from OpenAI /v1/chat/completions
-pub type Completion {
-  Completion(
+pub type ChatCompletion {
+  ChatCompletion(
     id: String,
     object: String,
     created: Int,

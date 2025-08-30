@@ -4,14 +4,14 @@ import gleam/httpc
 import gleam/io
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{None}
+import gleam/option.{type Option, None}
 import gleam/result
 import gleam/string
 
 import openai/chat/decoder
 import openai/chat/types.{
-  type Message, type Model, type Role, Assistant, Message, Model, OtherRole,
-  System, Tool, User,
+  type ChatCompletion, type Message, type Model, type Role, Assistant, Message,
+  Model, OtherRole, System, Tool, User,
 }
 import openai/error.{type OpenaiError, BadResponse}
 
@@ -39,7 +39,7 @@ pub fn create(
   client client: String,
   model model: Model,
   messages messages: List(Message),
-) -> Result(String, OpenaiError) {
+) -> Result(ChatCompletion, OpenaiError) {
   // I think this assert is Ok
   let assert Ok(base_req) = request.to(completions_url)
 
@@ -61,10 +61,8 @@ pub fn create(
         json.parse(resp.body, decoder.chat_completion_decoder())
         |> result.replace_error(BadResponse),
       )
-      use choice <- result.try(
-        list.first(completion.choices) |> result.replace_error(BadResponse),
-      )
-      Ok(choice.message.content)
+
+      Ok(completion)
     }
     // http streaming is not supported by httpc. See Issue (https://github.com/gleam-lang/httpc/issues/31).
     // This is a work around that is essentially the same result as No streaming
@@ -79,7 +77,6 @@ pub fn create(
         list.map(chunks, fn(chunk) {
           use completion <- result.try(
             json.parse(chunk, decoder.chat_completion_chunk_decoder())
-            // |> echo
             |> result.replace_error(BadResponse),
           )
           use choice <- result.try(
@@ -89,8 +86,8 @@ pub fn create(
           Ok(choice.delta.content)
         })
       io.println("\n")
-      // |> echo
-      Ok("streamed")
+      // TODO Return an Error for now until until we can stream
+      Error(error.NotFound)
     }
   }
 }

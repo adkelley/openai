@@ -1,6 +1,6 @@
 import gleam/dynamic/decode
 import gleam/option.{None, Some}
-import openai/chat/types
+import openai/chat/types.{ChatCompletion}
 
 fn role_type_decoder() {
   use role_string <- decode.then(decode.string)
@@ -178,7 +178,7 @@ pub fn chat_completion_decoder() {
   use model <- decode.field("model", decode.string)
   use service_tier <- decode.field("service_tier", decode.string)
   use system_fingerprint <- decode.field("system_fingerprint", decode.string)
-  decode.success(types.Completion(
+  decode.success(ChatCompletion(
     choices:,
     id:,
     object:,
