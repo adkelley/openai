@@ -1,5 +1,6 @@
 import chat/completions
-import chat/types.{type OpenaiError, Model, System, User}
+import chat/error.{type OpenaiError}
+import chat/types.{Model, System, User}
 import envoy
 import gleam/io
 

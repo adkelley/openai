@@ -123,7 +123,7 @@ pub type Completion {
   )
 }
 
-// streamed response from OpenAI /v1/chat/completions
+// region:    ---  streamed response from OpenAI /v1/chat/completions
 pub type Delta {
   Delta(role: String, content: String)
 }
@@ -149,29 +149,4 @@ pub type CompletionChunk {
     obfuscation: String,
   )
 }
-
-// Streaming 
-// 
-/// This type represents all the reasons for why openai could fail, separate from HTTP related
-pub type OpenaiError {
-  /// HTTP Error
-  HttpError
-  /// Invalid Request - 400
-  InvalidRequest
-  /// Bad Response: The response was invalid json or missing altogether.
-  BadResponse
-  /// Rate Limit
-  RateLimit
-  /// Tokens Exceeded
-  TokensExceeded
-  /// Unauthorized: Authentication is required.
-  Authentication
-  /// Not Found
-  NotFound
-  /// Internal Server Error: An error occurred on the server.
-  InternalServer
-  /// Permission
-  Permission
-  /// Unknown
-  Unknown
-}
+// endregion: ---  streamed response from OpenAI /v1/chat/completions
