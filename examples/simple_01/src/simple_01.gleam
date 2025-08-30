@@ -1,8 +1,8 @@
-import chat/completions
-import chat/error.{type OpenaiError}
-import chat/types.{Model, System, User}
 import envoy
 import gleam/io
+import openai/chat/completions
+import openai/chat/types.{Model, System, User}
+import openai/error.{type OpenaiError}
 
 pub fn main() -> Result(String, OpenaiError) {
   let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
