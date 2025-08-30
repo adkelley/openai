@@ -154,16 +154,24 @@ pub type CompletionChunk {
 // 
 /// This type represents all the reasons for why openai could fail, separate from HTTP related
 pub type OpenaiError {
-  /// Bad Request: The request was invalid.
-  BadRequest
+  /// HTTP Error
+  HttpError
+  /// Invalid Request - 400
+  InvalidRequest
   /// Bad Response: The response was invalid json or missing altogether.
   BadResponse
+  /// Rate Limit
+  RateLimit
+  /// Tokens Exceeded
+  TokensExceeded
   /// Unauthorized: Authentication is required.
-  Unauthorized
-  /// Forbidden: The server refuses to authorize the request.
-  Forbidden
-  /// Too Many Requests: Rate limit exceeded.
-  TooManyRequests
+  Authentication
+  /// Not Found
+  NotFound
   /// Internal Server Error: An error occurred on the server.
-  InternalServerError
+  InternalServer
+  /// Permission
+  Permission
+  /// Unknown
+  Unknown
 }
