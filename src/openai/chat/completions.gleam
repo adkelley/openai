@@ -53,43 +53,53 @@ pub fn create(
     |> request.set_body(body)
     |> request.set_method(http.Post)
 
+  use resp <- result.try(httpc.send(req) |> error.replace_error())
+  use completion <- result.try(
+    json.parse(resp.body, decoder.chat_completion_decoder())
+    |> result.replace_error(BadResponse),
+  )
+
+  Ok(completion)
+}
+
+pub fn create_streaming(
+  client client: String,
+  model model: Model,
+  messages messages: List(Message),
+  // ) -> Result(ChatCompletion, OpenaiError) {
+) {
+  // I think this assert is Ok
+  let assert Ok(base_req) = request.to(completions_url)
+
+  // let body = ""
+  let body = body_to_json_string(model, messages)
+
+  let req =
+    base_req
+    |> request.prepend_header("Content-Type", "application/json")
+    |> request.prepend_header("Authorization", "Bearer " <> client)
+    |> request.set_body(body)
+    |> request.set_method(http.Post)
+
   // TODO Report OpenAI API errors to user
   use resp <- result.try(httpc.send(req) |> error.replace_error())
-  case model.stream {
-    False -> {
+  // http streaming is not supported by httpc. See Issue (https://github.com/gleam-lang/httpc/issues/31).
+  // This is a work around until http streaming is supported
+  let chunks =
+    string.split(resp.body, "data: ")
+    |> list.drop(1)
+    |> list.map(string.trim)
+  let chunks = list.take(chunks, list.length(chunks) - 1)
+  let res =
+    list.map(chunks, fn(chunk) {
       use completion <- result.try(
-        json.parse(resp.body, decoder.chat_completion_decoder())
+        json.parse(chunk, decoder.chat_completion_chunk_decoder())
         |> result.replace_error(BadResponse),
       )
-
       Ok(completion)
-    }
-    // http streaming is not supported by httpc. See Issue (https://github.com/gleam-lang/httpc/issues/31).
-    // This is a work around that is essentially the same result as No streaming
-    True -> {
-      let chunks =
-        string.split(resp.body, "data: ")
-        |> list.drop(1)
-        |> list.map(string.trim)
-      let chunks = list.take(chunks, list.length(chunks) - 1)
-      // |> echo
-      let _res =
-        list.map(chunks, fn(chunk) {
-          use completion <- result.try(
-            json.parse(chunk, decoder.chat_completion_chunk_decoder())
-            |> result.replace_error(BadResponse),
-          )
-          use choice <- result.try(
-            list.first(completion.choices) |> result.replace_error(BadResponse),
-          )
-          io.print(choice.delta.content)
-          Ok(choice.delta.content)
-        })
-      io.println("\n")
-      // TODO Return an Error for now until until we can stream
-      Error(error.NotFound)
-    }
-  }
+    })
+    |> result.values()
+  Ok(res)
 }
 
 // region:    --- Json encoding
