@@ -1,10 +1,9 @@
 import gleam/http
 import gleam/http/request
 import gleam/httpc
-import gleam/io
 import gleam/json.{type Json}
 import gleam/list
-import gleam/option.{type Option, None}
+import gleam/option.{None}
 import gleam/result
 import gleam/string
 
