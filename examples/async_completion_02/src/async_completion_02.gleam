@@ -17,7 +17,7 @@ pub fn main() -> Nil {
 
   let model = Model(..model, stream: True)
   io.println("\nStreaming: ")
-  let assert Ok(_) = completions.async_create(api_key, model, messages)
+  let assert Ok(_) = completions.stream_create(api_key, model, messages)
 
   Nil
 }
