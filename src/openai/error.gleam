@@ -22,6 +22,8 @@ pub type OpenaiError {
   InternalServer
   /// Permission
   Permission
+  /// Server Timeout
+  Timeout
   /// Unknown
   Unknown
 }

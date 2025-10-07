@@ -2,12 +2,10 @@
 // import gleam/erlang/atom
 // import gleam/erlang/process.{type Pid}
 import gleam/bit_array
-import gleam/erlang/atom
 import gleam/erlang/process.{type Pid}
-import gleam/erlang/reference.{type Reference}
 import gleam/http
 import gleam/http/request
-import gleam/httpc.{StreamSelfOnce}
+import gleam/httpc
 import gleam/io
 import gleam/json.{type Json}
 import gleam/list
@@ -20,9 +18,11 @@ import openai/chat/types.{
   type ChatCompletion, type CompletionChunk, type Message, type Model, type Role,
   Assistant, Message, Model, OtherRole, System, Tool, User,
 }
-import openai/error.{type OpenaiError, BadResponse}
+import openai/error.{type OpenaiError, BadResponse, Timeout}
 
 const completions_url = "https://api.openai.com/v1/chat/completions"
+
+const timeout = 5000
 
 pub fn default_model() -> Model {
   Model(name: "gpt-4.1-mini", temperature: 0.7, stream: False)
@@ -69,7 +69,7 @@ pub fn create(
   Ok(completion)
 }
 
-pub fn async_create(
+pub fn stream_create(
   client client: String,
   model model: Model,
   messages messages: List(Message),
@@ -89,42 +89,33 @@ pub fn async_create(
     |> request.set_body(body)
     |> request.set_method(http.Post)
 
-  let config = httpc.configure() |> httpc.async_stream(StreamSelfOnce)
-
-  // TODO return a proper error response
   use request_id <- result.try(
-    httpc.async_dispatch(config, req)
+    httpc.send_stream_request(req)
     |> result.replace_error(BadResponse),
   )
-  use chunks <- result.try(loop(request_id, process.self(), []))
+
+  let mapper = httpc.raw_stream_mapper()
+  let selector = process.new_selector() |> httpc.select_stream_messages(mapper)
+
+  use chunks <- result.try(loop(selector, request_id, process.self(), []))
+
   Ok(chunks)
 }
 
 fn loop(
-  request_id: Reference,
+  selector: process.Selector(httpc.StreamMessage),
+  request_id: httpc.RequestIdentifier,
   handler_pid: Pid,
   chunks: List(CompletionChunk),
 ) -> Result(List(CompletionChunk), OpenaiError) {
-  use payload_ <- result.try(
-    httpc.async_receive(request_id, 10_000) |> result.replace_error(BadResponse),
-  )
-  let #(stream_state_, payload) = payload_
-  let stream_state = atom.to_string(stream_state_)
-  case stream_state {
-    "stream_start" -> {
-      let #(_headers, pid) = httpc.dynamic_to_headers_pid(payload)
-      use _next <- result.try(
-        httpc.async_stream_next(pid) |> result.replace_error(BadResponse),
-      )
-      loop(request_id, pid, chunks)
-    }
-    "stream" -> {
+  let response = process.selector_receive(selector, timeout)
+  case response {
+    Ok(httpc.StreamChunk(_request_id, payload)) -> {
       use chunk_ <- result.try(
-        httpc.dynamic_to_bit_array(payload)
+        payload
         |> bit_array.to_string
         |> result.replace_error(BadResponse),
       )
-      // echo "stream"
       let chunk =
         string.split(chunk_, "data: ")
         |> list.drop(1)
@@ -143,20 +134,20 @@ fn loop(
         })
         |> result.values()
         |> list.append(chunks)
-      use _next <- result.try(
-        httpc.async_stream_next(handler_pid)
-        |> result.replace_error(BadResponse),
-      )
-      loop(request_id, handler_pid, res)
+      let _next = httpc.receive_next_stream_message(handler_pid)
+      loop(selector, request_id, handler_pid, res)
     }
-    "stream_end" -> {
-      // echo "stream_end"
-      io.println("")
-      list.reverse(chunks) |> Ok
+    Ok(httpc.StreamStart(_request_id, _headers, pid)) -> {
+      let _next = httpc.receive_next_stream_message(pid)
+      loop(selector, request_id, pid, chunks)
     }
-    _ -> {
-      Error(BadResponse)
+    Ok(httpc.StreamEnd(_request_id, _headers)) -> {
+      io.println("\n")
+      Ok(chunks)
     }
+    // TODO convert the HTTP Error to proper OpenaiError
+    Ok(httpc.StreamError(_, _)) -> Error(BadResponse)
+    Error(Nil) -> Error(Timeout)
   }
 }
 
