@@ -2,7 +2,8 @@ import envoy
 import gleam/io
 
 import openai/chat/completions
-import openai/chat/types.{Model, System, User}
+import openai/chat/types
+import openai/shared/types as shared
 
 pub fn main() -> Nil {
   let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
@@ -10,14 +11,14 @@ pub fn main() -> Nil {
   let prompt = "Why is the sky blue?"
   io.println("Prompt: " <> prompt)
 
-  let model = completions.default_model()
+  let config = completions.default_config()
   let messages =
-    completions.add_message([], System, "You are a helpful assistant")
-    |> completions.add_message(User, prompt)
+    completions.add_message([], shared.System, "You are a helpful assistant")
+    |> completions.add_message(shared.User, prompt)
 
-  let model = Model(..model, stream: True)
+  let config = types.Config(..config, stream: True)
   io.println("\nStreaming: ")
-  let assert Ok(_) = completions.stream_create(api_key, model, messages)
+  let assert Ok(_) = completions.stream_create(api_key, config, messages)
 
   Nil
 }

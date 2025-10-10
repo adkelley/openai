@@ -1,23 +1,15 @@
 // https://platform.openai.com/docs/api-reference/chat
 // 
 import gleam/option.{type Option}
+import openai/shared/types
 
-pub type Model {
-  Model(name: String, temperature: Float, stream: Bool)
+pub type Config {
+  Config(name: types.Model, temperature: Float, stream: Bool)
 }
 
 // Audio
 pub type Audio {
   Audio(data: String, expires_at: Int, id: String, transcript: String)
-}
-
-// Message roles in chat
-pub type Role {
-  System
-  User
-  Assistant
-  Tool
-  OtherRole(String)
 }
 
 pub type UrlCitation {
@@ -39,7 +31,7 @@ pub type ToolCall {
 // Message object in a choice
 pub type Message {
   Message(
-    role: Role,
+    role: types.Role,
     content: String,
     tool_calls: Option(List(ToolCall)),
     refusal: Option(String),

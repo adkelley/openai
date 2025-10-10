@@ -1,15 +1,16 @@
 import gleam/dynamic/decode
 import gleam/option.{None, Some}
 import openai/chat/types.{ChatCompletion}
+import openai/shared/types as shared
 
 fn role_type_decoder() {
   use role_string <- decode.then(decode.string)
   case role_string {
-    "assistant" -> decode.success(types.Assistant)
-    "user" -> decode.success(types.User)
-    "system" -> decode.success(types.System)
-    "tool" -> decode.success(types.Tool)
-    _ -> decode.success(types.OtherRole(role_string))
+    "assistant" -> decode.success(shared.Assistant)
+    "user" -> decode.success(shared.User)
+    "system" -> decode.success(shared.System)
+    "tool" -> decode.success(shared.Tool)
+    _ -> decode.success(shared.OtherRole(role_string))
   }
 }
 

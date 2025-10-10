@@ -15,20 +15,21 @@ import gleam/string
 
 import openai/chat/decoder
 import openai/chat/types.{
-  type ChatCompletion, type CompletionChunk, type Message, type Model, type Role,
-  Assistant, Message, Model, OtherRole, System, Tool, User,
+  type ChatCompletion, type CompletionChunk, type Config, type Message, Config,
+  Message,
 }
 import openai/error.{type OpenaiError, BadResponse, Timeout}
+import openai/shared/types as shared
 
 const completions_url = "https://api.openai.com/v1/chat/completions"
 
 const timeout = 5000
 
-pub fn default_model() -> Model {
-  Model(name: "gpt-4.1-mini", temperature: 0.7, stream: False)
+pub fn default_config() -> Config {
+  Config(name: shared.GPT41Mini, temperature: 0.7, stream: False)
 }
 
-pub fn add_message(messages: List(Message), role: Role, content: String) {
+pub fn add_message(messages: List(Message), role: shared.Role, content: String) {
   [
     Message(
       role: role,
@@ -44,14 +45,14 @@ pub fn add_message(messages: List(Message), role: Role, content: String) {
 
 pub fn create(
   client client: String,
-  model model: Model,
+  config config: Config,
   messages messages: List(Message),
 ) -> Result(ChatCompletion, OpenaiError) {
   // I think this assert is Ok
   let assert Ok(base_req) = request.to(completions_url)
 
   // let body = ""
-  let body = body_to_json_string(model, messages)
+  let body = body_to_json_string(config, messages)
 
   let req =
     base_req
@@ -71,14 +72,14 @@ pub fn create(
 
 pub fn stream_create(
   client client: String,
-  model model: Model,
+  config config: Config,
   messages messages: List(Message),
 ) -> Result(List(CompletionChunk), OpenaiError) {
   // I think this assert is Ok
   let assert Ok(base_req) = request.to(completions_url)
 
   // ensure streaming is set to true in the model
-  let model = Model(..model, stream: True)
+  let model = Config(..config, stream: True)
   let body = body_to_json_string(model, messages)
 
   let req =
@@ -152,7 +153,7 @@ fn loop(
 }
 
 // region:    --- Json encoding
-fn body_to_json_string(model: Model, messages: List(Message)) -> String {
+fn body_to_json_string(config: Config, messages: List(Message)) -> String {
   let msg_to_json = fn(role: String, content: String) {
     [
       json.object([
@@ -162,20 +163,20 @@ fn body_to_json_string(model: Model, messages: List(Message)) -> String {
     ]
   }
 
-  let role_to_string = fn(role: Role) {
+  let role_to_string = fn(role: shared.Role) {
     case role {
-      Assistant -> "assistant"
-      OtherRole(role_) -> role_
-      System -> "system"
-      Tool -> "tool"
-      User -> "user"
+      shared.Assistant -> "assistant"
+      shared.OtherRole(role_) -> role_
+      shared.System -> "system"
+      shared.Tool -> "tool"
+      shared.User -> "user"
     }
   }
 
   json.object([
-    #("model", json.string(model.name)),
-    #("temperature", json.float(model.temperature)),
-    #("stream", json.bool(model.stream)),
+    #("model", json.string(shared.describe_model(config.name))),
+    #("temperature", json.float(config.temperature)),
+    #("stream", json.bool(config.stream)),
     #(
       "messages",
       json.preprocessed_array(
