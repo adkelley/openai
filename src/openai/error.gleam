@@ -1,5 +1,7 @@
+import gleam/dynamic/decode.{type Decoder}
 import gleam/http/response.{type Response, Response}
 import gleam/httpc.{type HttpError}
+import gleam/json
 import gleam/result
 
 /// This type represents all the reasons for why openai could fail, separate from HTTP related
@@ -7,7 +9,7 @@ pub type OpenaiError {
   /// HTTP Error (e.g, 404)
   HttpError
   /// Invalid Request - 400
-  InvalidRequest
+  InvalidRequest(String)
   /// Bad Response: The response was invalid json or missing altogether.
   BadResponse
   /// Rate Limit
@@ -30,13 +32,21 @@ pub type OpenaiError {
 
 /// Replace what otherwise may a 200 status with our OpenAI error
 pub fn replace_error(
-  resp: Result(Response(body), HttpError),
-) -> Result(Response(body), OpenaiError) {
+  resp: Result(Response(String), HttpError),
+) -> Result(Response(String), OpenaiError) {
   use resp <- result.try(resp |> result.replace_error(HttpError))
-  let Response(status, _, _) = resp
+  let Response(status, _, body) = resp
   case status {
     200 -> Ok(resp)
-    400 -> Error(InvalidRequest)
+    400 -> {
+      // TODO better error handling?
+      let decoder = fn() -> Decoder(String) {
+        use message <- decode.subfield(["error", "message"], decode.string)
+        decode.success(message)
+      }
+      let assert Ok(error_message) = json.parse(body, decoder())
+      Error(InvalidRequest(error_message))
+    }
     429 -> Error(RateLimit)
     403 -> Error(TokensExceeded)
     401 -> Error(Authentication)

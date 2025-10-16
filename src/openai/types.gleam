@@ -1,3 +1,5 @@
+import gleam/json.{type Json}
+
 /// The role of a message
 pub type Role {
   System
@@ -7,6 +9,17 @@ pub type Role {
   OtherRole(String)
 }
 
+pub fn role_encoder(role: Role) -> Json {
+  case role {
+    Assistant -> "assistant"
+    OtherRole(str) -> str
+    System -> "system"
+    Tool -> "tool"
+    User -> "user"
+  }
+  |> json.string
+}
+
 /// The model to use for generating a response.
 pub type Model {
   O1
@@ -14,6 +27,7 @@ pub type Model {
   O1Pro
   O3Mini
   GPT45Preview
+  GPT41
   GPT41Mini
   GPT4o
   GPT4oMini
@@ -24,11 +38,12 @@ pub type Model {
   Other(String)
 }
 
-pub fn describe_model(model: Model) -> String {
+pub fn model_encoder(model: Model) -> Json {
   case model {
     ComputerUsePreview -> "computer-use-preview"
     GPT35Turbo -> "gpt-3.5-turbo"
     GPT4 -> "gpt-4o"
+    GPT41 -> "gpt-4.1"
     GPT45Preview -> "gpt-4.5-preview"
     GPT4Turbo -> "gpt-4o-turbo"
     GPT4o -> "gpt-4o"
@@ -40,4 +55,5 @@ pub fn describe_model(model: Model) -> String {
     O3Mini -> "o3-mini"
     Other(str) -> str
   }
+  |> json.string
 }

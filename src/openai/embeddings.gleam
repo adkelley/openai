@@ -9,7 +9,7 @@ import openai/embeddings/types.{
   type EncodingFormat, type Model, type Objects, TextEmbeddingAda002,
 }
 
-import openai/embeddings/decoder
+import openai/embeddings/decoders
 import openai/error.{type OpenaiError, BadResponse}
 
 const embeddings_url = "https://api.openai.com/v1/embeddings"
@@ -39,7 +39,7 @@ pub fn create(
 
   use resp <- result.try(httpc.send(req) |> error.replace_error())
   use embedding <- result.try(
-    json.parse(resp.body, decoder.embeddings_decoder())
+    json.parse(resp.body, decoders.embeddings_decoder())
     |> result.replace_error(BadResponse),
   )
   Ok(embedding)

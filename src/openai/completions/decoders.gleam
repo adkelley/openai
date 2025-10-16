@@ -1,7 +1,7 @@
 import gleam/dynamic/decode
 import gleam/option.{None, Some}
-import openai/chat/types.{ChatCompletion}
-import openai/shared/types as shared
+import openai/completions/types as completions
+import openai/types as shared
 
 fn role_type_decoder() {
   use role_string <- decode.then(decode.string)
@@ -19,13 +19,13 @@ fn url_citation_type_decoder() {
   use start_index <- decode.field("start_index", decode.int)
   use title <- decode.field("title", decode.string)
   use url <- decode.field("url", decode.string)
-  decode.success(types.UrlCitation(end_index:, start_index:, title:, url:))
+  decode.success(completions.UrlCitation(end_index:, start_index:, title:, url:))
 }
 
 fn annotation_decoder() {
   use type_ <- decode.field("type", decode.string)
   use url_citation <- decode.field("url_citation", url_citation_type_decoder())
-  decode.success(types.Annotation(type_:, url_citation:))
+  decode.success(completions.Annotation(type_:, url_citation:))
 }
 
 fn audio_type_decoder() {
@@ -33,20 +33,20 @@ fn audio_type_decoder() {
   use expires_at <- decode.field("expires_at", decode.int)
   use id <- decode.field("id", decode.string)
   use transcript <- decode.field("transcript", decode.string)
-  decode.success(Some(types.Audio(data:, expires_at:, id:, transcript:)))
+  decode.success(Some(completions.Audio(data:, expires_at:, id:, transcript:)))
 }
 
 fn function_decoder() {
   use arguments <- decode.field("arguments", decode.string)
   use name <- decode.field("name", decode.string)
-  decode.success(types.Function(arguments:, name:))
+  decode.success(completions.Function(arguments:, name:))
 }
 
 fn tool_call_decoder() {
   use function <- decode.field("function", function_decoder())
   use id <- decode.field("id", decode.string)
   use type_ <- decode.field("type", decode.string)
-  decode.success(types.ToolCall(function:, id:, type_:))
+  decode.success(completions.ToolCall(function:, id:, type_:))
 }
 
 fn message_decoder() {
@@ -64,7 +64,7 @@ fn message_decoder() {
     None,
     tool_calls_decoder,
   )
-  decode.success(types.Message(
+  decode.success(completions.Message(
     role:,
     content:,
     refusal:,
@@ -78,7 +78,7 @@ fn blt_decoder() {
   use bytes <- decode.field("bytes", decode.optional(decode.list(decode.int)))
   use logprob <- decode.field("logprob", decode.float)
   use token <- decode.field("token", decode.string)
-  decode.success(types.BytesLogprobToken(bytes:, logprob:, token:))
+  decode.success(completions.BytesLogprobToken(bytes:, logprob:, token:))
 }
 
 fn refusal_decoder() {
@@ -86,7 +86,7 @@ fn refusal_decoder() {
   use logprob <- decode.field("logprob", decode.float)
   use token <- decode.field("token", decode.string)
   use top_logprobs <- decode.field("top_logprobs", decode.list(blt_decoder()))
-  decode.success(types.Refusal(bytes:, logprob:, token:, top_logprobs:))
+  decode.success(completions.Refusal(bytes:, logprob:, token:, top_logprobs:))
 }
 
 fn content_decoder() {
@@ -94,13 +94,13 @@ fn content_decoder() {
   use logprob <- decode.field("logprob", decode.float)
   use token <- decode.field("token", decode.string)
   use top_logprobs <- decode.field("top_logprobs", decode.list(blt_decoder()))
-  decode.success(types.Content(bytes:, logprob:, token:, top_logprobs:))
+  decode.success(completions.Content(bytes:, logprob:, token:, top_logprobs:))
 }
 
 fn logprobs_decoder() {
   use content <- decode.field("content", decode.list(content_decoder()))
   use refusal <- decode.field("refusal", decode.list(refusal_decoder()))
-  decode.success(types.Logprob(content:, refusal:))
+  decode.success(completions.Logprob(content:, refusal:))
 }
 
 // This is where the content resides
@@ -113,7 +113,7 @@ fn completion_choice_decoder() {
   use index <- decode.field("index", decode.int)
   use logprobs <- decode.field("logprobs", decode.optional(logprobs_decoder()))
   use message <- decode.field("message", message_decoder())
-  decode.success(types.CompletionChoice(
+  decode.success(completions.CompletionChoice(
     index:,
     message:,
     finish_reason:,
@@ -132,7 +132,7 @@ fn completion_tokens_details_decoder() {
     "rejected_prediction_tokens",
     decode.int,
   )
-  decode.success(types.CompletionTokenDetails(
+  decode.success(completions.CompletionTokenDetails(
     accepted_prediction_tokens:,
     audio_tokens:,
     reasoning_tokens:,
@@ -143,7 +143,7 @@ fn completion_tokens_details_decoder() {
 fn prompt_tokens_details_decoder() {
   use cached_tokens <- decode.field("cached_tokens", decode.int)
   use audio_tokens <- decode.field("audio_tokens", decode.int)
-  decode.success(types.PromptTokenDetails(cached_tokens:, audio_tokens:))
+  decode.success(completions.PromptTokenDetails(cached_tokens:, audio_tokens:))
 }
 
 fn usage_decoder() {
@@ -158,7 +158,7 @@ fn usage_decoder() {
     "completion_tokens_details",
     completion_tokens_details_decoder(),
   )
-  decode.success(types.Usage(
+  decode.success(completions.Usage(
     prompt_tokens:,
     completion_tokens:,
     total_tokens:,
@@ -179,7 +179,7 @@ pub fn chat_completion_decoder() {
   use model <- decode.field("model", decode.string)
   use service_tier <- decode.field("service_tier", decode.string)
   use system_fingerprint <- decode.field("system_fingerprint", decode.string)
-  decode.success(ChatCompletion(
+  decode.success(completions.ChatCompletion(
     choices:,
     id:,
     object:,
@@ -196,7 +196,7 @@ fn delta_decoder() {
   // use finish_reason <- decode.field("finish_reason", decode.string)
   use role <- decode.optional_field("role", "assistant", decode.string)
   use content <- decode.optional_field("content", "", decode.string)
-  decode.success(types.Delta(content:, role:))
+  decode.success(completions.Delta(content:, role:))
 }
 
 fn completion_choice_chunk_decoder() {
@@ -208,7 +208,7 @@ fn completion_choice_chunk_decoder() {
     "finish_reason",
     decode.optional(decode.string),
   )
-  decode.success(types.CompletionChoiceChunk(
+  decode.success(completions.CompletionChoiceChunk(
     index:,
     delta:,
     logprobs:,
@@ -228,7 +228,7 @@ pub fn chat_completion_chunk_decoder() {
   use service_tier <- decode.field("service_tier", decode.string)
   use obfuscation <- decode.field("obfuscation", decode.string)
   use system_fingerprint <- decode.field("system_fingerprint", decode.string)
-  decode.success(types.CompletionChunk(
+  decode.success(completions.CompletionChunk(
     choices:,
     id:,
     object:,
