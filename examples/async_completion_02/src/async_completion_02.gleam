@@ -1,9 +1,9 @@
 import envoy
 import gleam/io
 
-import openai/chat/completions
-import openai/chat/types
-import openai/shared/types as shared
+import openai/completions
+import openai/completions/types
+import openai/types as shared
 
 pub fn main() -> Nil {
   let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
