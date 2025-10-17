@@ -182,3 +182,20 @@ fn json_body(
 // endregion: --- Json encoding
 // 
 // TODO encode within chat/types instead of here as we do in responses code
+    #("model", shared.model_encoder(config.name)),
+    #("temperature", json.float(config.temperature)),
+    #("stream", json.bool(config.stream)),
+    #(
+      "messages",
+      json.preprocessed_array(
+        list.fold(messages, [], fn(acc: List(Json), msg: completions.Message) {
+          list.append(acc, json_msg(msg.role, msg.content))
+        }),
+      ),
+    ),
+  ])
+  |> json.to_string
+}
+// endregion: --- Json encoding
+// 
+// TODO encode within chat/types instead of here as we do in responses code
