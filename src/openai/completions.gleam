@@ -1,9 +1,8 @@
 import gleam/bit_array
-import gleam/erlang/process.{type Pid}
+import gleam/erlang/process
 import gleam/http
 import gleam/http/request
 import gleam/httpc
-import gleam/io
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{None}
@@ -18,6 +17,20 @@ import openai/types as shared
 const completions_url = "https://api.openai.com/v1/chat/completions"
 
 const timeout = 5000
+
+pub opaque type StreamHandler {
+  StreamHandler(
+    selector: process.Selector(httpc.StreamMessage),
+    request_id: httpc.RequestIdentifier,
+    handler_pid: process.Pid,
+  )
+}
+
+pub type StreamResponse {
+  StreamChunk(List(completions.CompletionChunk))
+  StreamStart(StreamHandler)
+  StreamEnd
+}
 
 pub fn default_config() -> completions.Config {
   completions.Config(name: shared.GPT41Mini, temperature: 0.7, stream: False)
@@ -72,7 +85,7 @@ pub fn stream_create(
   client client: String,
   config config: completions.Config,
   messages messages: List(completions.Message),
-) -> Result(List(completions.CompletionChunk), error.OpenaiError) {
+) -> Result(StreamHandler, error.OpenaiError) {
   // I think this assert is Ok
   let assert Ok(base_req) = request.to(completions_url)
 
@@ -96,20 +109,20 @@ pub fn stream_create(
   let mapper = httpc.raw_stream_mapper()
   let selector = process.new_selector() |> httpc.select_stream_messages(mapper)
 
-  use chunks <- result.try(loop(selector, request_id, process.self(), []))
-
-  Ok(chunks)
+  // Note: process.self() is not the pid that starts the stream, it's just a dummy
+  // until the StreamStart messages returns the stream's pid
+  Ok(StreamHandler(selector:, request_id:, handler_pid: process.self()))
 }
 
-fn loop(
-  selector: process.Selector(httpc.StreamMessage),
-  request_id: httpc.RequestIdentifier,
-  handler_pid: Pid,
-  chunks: List(completions.CompletionChunk),
-) -> Result(List(completions.CompletionChunk), error.OpenaiError) {
-  let response = process.selector_receive(selector, timeout)
-  case response {
-    Ok(httpc.StreamChunk(_request_id, payload)) -> {
+pub fn stream_create_handler(
+  handler: StreamHandler,
+) -> Result(StreamResponse, error.OpenaiError) {
+  let StreamHandler(selector, request_id, handler_pid) = handler
+
+  case process.selector_receive(selector, timeout) {
+    Ok(httpc.StreamChunk(request_id_, payload)) -> {
+      assert request_id_ == request_id
+        as "Error: Request identifiers don't match"
       use chunk_ <- result.try(
         payload
         |> bit_array.to_string
@@ -125,24 +138,27 @@ fn loop(
             json.parse(chunk, decoders.chat_completion_chunk_decoder())
             |> result.replace_error(error.BadResponse),
           )
-          // TODO: Should this be an option?
-          list.map(completion.choices, fn(choice) {
-            io.print(choice.delta.content)
-          })
           Ok(completion)
         })
         |> result.values()
-        |> list.append(chunks)
       let _next = httpc.receive_next_stream_message(handler_pid)
-      loop(selector, request_id, handler_pid, res)
+      Ok(StreamChunk(res))
     }
-    Ok(httpc.StreamStart(_request_id, _headers, pid)) -> {
+    Ok(httpc.StreamStart(request_id_, _headers, pid)) -> {
+      assert request_id_ == request_id
+        as "Error: Request identifiers don't match"
       let _next = httpc.receive_next_stream_message(pid)
-      loop(selector, request_id, pid, chunks)
+      Ok(
+        StreamStart(StreamHandler(
+          selector:,
+          request_id:,
+          // process.self() is replaced by the stream's actual pid
+          handler_pid: pid,
+        )),
+      )
     }
     Ok(httpc.StreamEnd(_request_id, _headers)) -> {
-      io.println("\n")
-      Ok(chunks)
+      Ok(StreamEnd)
     }
     // TODO convert the HTTP Error to proper OpenaiError
     Ok(httpc.StreamError(_, _)) -> Error(error.BadResponse)
@@ -150,6 +166,7 @@ fn loop(
   }
 }
 
+// TODO put this in an completions/decoders.gleam file
 // region:    --- Json encoding
 fn json_body(
   config: completions.Config,
@@ -165,23 +182,6 @@ fn json_body(
   }
 
   json.object([
-    #("model", shared.model_encoder(config.name)),
-    #("temperature", json.float(config.temperature)),
-    #("stream", json.bool(config.stream)),
-    #(
-      "messages",
-      json.preprocessed_array(
-        list.fold(messages, [], fn(acc: List(Json), msg: completions.Message) {
-          list.append(acc, json_msg(msg.role, msg.content))
-        }),
-      ),
-    ),
-  ])
-  |> json.to_string
-}
-// endregion: --- Json encoding
-// 
-// TODO encode within chat/types instead of here as we do in responses code
     #("model", shared.model_encoder(config.name)),
     #("temperature", json.float(config.temperature)),
     #("stream", json.bool(config.stream)),
