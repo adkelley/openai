@@ -1,10 +1,14 @@
+/// Demonstrates the Files API workflow: upload, inspect, download, list, and delete.
 import envoy
 import gleam/list
 import openai/files
 import simplifile
 
+/// Uploads a JSONL file, retrieves its info and contents, and then cleans up the
+/// uploaded resources.
 pub fn main() -> Nil {
   let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
+
   let assert Ok(upload_file) =
     files.file_create_params(
       "./mydata.jsonl",

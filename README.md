@@ -2,7 +2,7 @@
 
 `openai` is an SDK for the OpenAI API written in Gleam. It wraps the REST APIs with
 typed request/response structures, streaming support, and helpful utilities so
-Gleam applications can call the Responses, Chat Completions, and Embeddings
+Gleam applications can call the Responses, Chat Completions, Files, and Embeddings
 endpoints without hand-writing JSON plumbing.
 
 ## Overview
@@ -11,10 +11,11 @@ endpoints without hand-writing JSON plumbing.
 - Chat completions with helpers for building message sets.
 - Server Sent Events streaming support for `/v1/chat/completions`.
 - `/v1/responses` support with builders for tool selection (web search, etc).
+- Files API utilities for uploading datasets, retrieving metadata, and downloading content.
 - Embeddings with strongly typed vectors and usage data.
 - Consistent error mapping into an `OpenaiError` union.
 
-Further documentation can be found at <>.
+Further documentation can be found at <https://hexdocs.pm/openai/>.
 
 ## Installation
 
@@ -100,6 +101,40 @@ The request builder exposes helpers for model selection, input text, tool choice
 and tool registration. Tool payloads (such as web search filters and locations)
 are typed, so you can confidently expose them to the model.
 
+### Files API
+
+```gleam
+import envoy
+import gleam/io
+import openai/files
+import simplifile
+
+pub fn main() -> Nil {
+  let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
+
+  let assert Ok(file) =
+    files.file_create_params(
+      "./mydata.jsonl",
+      files.Evals,
+      files.expires_after_params(3600),
+    )
+    |> files.create(api_key, _)
+
+  // Inspect the remote metadata before downloading the contents.
+  let assert Ok(metadata) = files.retrieve(api_key, file.id)
+  io.debug(metadata)
+
+  let assert Ok(bytes) = files.content(api_key, file.id)
+  let assert Ok(_) = simplifile.write_bits("./download.jsonl", bytes)
+
+  let assert Ok(_) = files.delete(api_key, file.id)
+  Nil
+}
+```
+
+Use the provided helpers to control file purposes, expiry, and list results. The
+files example demonstrates chaining these utilities together.
+
 ### Embeddings
 
 ```gleam
@@ -133,7 +168,8 @@ pub fn main() -> Nil {
 - `examples/completion_01` – synchronous chat completions.
 - `examples/async_completion_02` – streaming chat completions over SSE.
 - `examples/embeddings_03` – embedding generation helpers.
-- `examples/tools_web_search_04` – calling the Responses API with the web search tool.
+- `examples/web_search_04` – calling the Responses API with the web search tool.
+- `examples/files_api_05` – end-to-end Files API upload, download, and cleanup.
 
 ## Development
 

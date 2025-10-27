@@ -1,24 +1,28 @@
-# simple_01
+# completion_01
 
-[![Package Version](https://img.shields.io/hexpm/v/simple_01)](https://hex.pm/packages/simple_01)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/simple_01/)
+## Overview
 
-```sh
-gleam add simple_01@1
-```
-```gleam
-import simple_01
+This example issues a basic chat completion request with the `openai` Gleam SDK.
+It sends a fixed prompt through the Chat Completions API, collects the returned
+assistant message, and prints the response to standard output.
 
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
-}
-```
+## Prerequisites
 
-Further documentation can be found at <https://hexdocs.pm/simple_01>.
+- Set the `OPENAI_API_KEY` environment variable before running the example.
+- Adjust the hard-coded prompt in `src/completion_01.gleam` if you would like to
+  query a different question.
 
-## Development
+## Running the example
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam run
 ```
+
+The program will:
+
+1. Load `OPENAI_API_KEY` from the environment.
+2. Build a minimal chat history with a system primer and a single user prompt.
+3. Call `openai/chat/completions.create/3` and print the assistant content.
+
+See `src/completion_01.gleam` for inline comments that explain each step in more
+detail.

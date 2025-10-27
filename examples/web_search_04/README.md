@@ -1,24 +1,30 @@
-# response_04
+# web_search_04
 
-[![Package Version](https://img.shields.io/hexpm/v/response_04)](https://hex.pm/packages/response_04)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/response_04/)
+## Overview
 
-```sh
-gleam add response_04@1
-```
-```gleam
-import response_04
+This example enables web search tool usage with the Responses API. It constructs
+a request that prefers web search, constrains domains, and prints the full API
+response so you can inspect the referenced sources.
 
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
-}
-```
+## Prerequisites
 
-Further documentation can be found at <https://hexdocs.pm/response_04>.
+- Set the `OPENAI_API_KEY` environment variable before running the example.
+- Update the `prompt` in `src/web_search_04.gleam` to explore different topics.
+- Optionally adjust the allowed domains or location filters in the request
+  builder to match your needs.
 
-## Development
+## Running the example
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam run
 ```
+
+The program will:
+
+1. Load `OPENAI_API_KEY` from the environment.
+2. Build a Responses API request that enables the `web_search` tool.
+3. Limit results to a whitelisted domain and provide a user location hint.
+4. Execute the request and print the raw response payload.
+
+See `src/web_search_04.gleam` for further details on the request structure and
+how to adapt it for your own application.

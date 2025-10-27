@@ -1,3 +1,4 @@
+/// Issues a Responses API call configured to use the web search tool.
 import envoy
 import gleam/io
 import gleam/option.{None, Some}
@@ -8,6 +9,7 @@ import openai/responses/types/request.{Auto, SCSLow, WebSearch, WebSearchFilters
 import openai/responses/types/response.{type Response}
 import openai/types as shared
 
+/// Builds a web-search-enabled response request and prints the returned payload.
 pub fn main() -> Result(Response, OpenaiError) {
   let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
 

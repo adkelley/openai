@@ -1,24 +1,31 @@
-# file_search_05
+# files_api_05
 
-[![Package Version](https://img.shields.io/hexpm/v/file_search_05)](https://hex.pm/packages/file_search_05)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/file_search_05/)
+## Overview
 
-```sh
-gleam add file_search_05@1
-```
-```gleam
-import file_search_05
+This example walks through the core operations of the Files API in the
+`openai` Gleam SDK. It uploads a JSONL dataset, fetches file metadata and
+contents, persists a local copy, and then cleans up by deleting the uploaded
+files.
 
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
-}
-```
+## Prerequisites
 
-Further documentation can be found at <https://hexdocs.pm/file_search_05>.
+- Set the `OPENAI_API_KEY` environment variable with a key that allows Files API
+  access.
+- Ensure the bundled `mydata.jsonl` sample file contains the data you want to
+  upload.
 
-## Development
+## Running the example
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam run
 ```
+
+The program will:
+
+1. Upload `mydata.jsonl` for `evals` use and print the returned file object.
+2. Download the remote file contents and save them as `mydata_download.jsonl`.
+3. List recent files scoped to the `evals` purpose and display the response.
+4. Delete the listed files and show the deletion results.
+
+Refer to `src/files_api_05.gleam` for inline comments describing each step and
+for ideas on adapting the workflow to your own datasets.

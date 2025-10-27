@@ -1,24 +1,29 @@
-# simple_01
+# async_completion_02
 
-[![Package Version](https://img.shields.io/hexpm/v/simple_01)](https://hex.pm/packages/simple_01)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/simple_01/)
+## Overview
 
-```sh
-gleam add simple_01@1
-```
-```gleam
-import simple_01
+This example demonstrates streaming chat completions using the `openai`
+Gleam SDK. It enables server-side streaming, consumes chunks as they arrive,
+and prints the assistant's answer progressively.
 
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
-}
-```
+## Prerequisites
 
-Further documentation can be found at <https://hexdocs.pm/simple_01>.
+- Set the `OPENAI_API_KEY` environment variable before running the example.
+- The program prints a fixed question; edit `prompt` in
+  `src/async_completion_02.gleam` to experiment with other inputs.
 
-## Development
+## Running the example
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam run
 ```
+
+The program will:
+
+1. Load `OPENAI_API_KEY` from the environment.
+2. Configure a chat completion request with `stream: True`.
+3. Invoke `openai/completions.stream_create/3`.
+4. Iterate over each streamed delta and print partial content as it arrives.
+
+Refer to `src/async_completion_02.gleam` for additional commentary on handling
+the stream lifecycle.

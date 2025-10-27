@@ -1,24 +1,28 @@
-# embeddings_02
+# embeddings_03
 
-[![Package Version](https://img.shields.io/hexpm/v/embeddings_02)](https://hex.pm/packages/embeddings_02)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/embeddings_02/)
+## Overview
 
-```sh
-gleam add embeddings_02@1
-```
-```gleam
-import embeddings_02
+This example shows how to generate embeddings with the `openai` Gleam SDK. It
+sends a short sentence to the Embeddings API, prints the model used, and echoes
+the resulting vector payload.
 
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
-}
-```
+## Prerequisites
 
-Further documentation can be found at <https://hexdocs.pm/embeddings_02>.
+- Set the `OPENAI_API_KEY` environment variable before running the example.
+- Update the `input` string in `src/embeddings_03.gleam` if you would like to
+  embed different text.
 
-## Development
+## Running the example
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam run
 ```
+
+The program will:
+
+1. Load `OPENAI_API_KEY` from the environment.
+2. Select the default embeddings model exposed by the SDK.
+3. Submit an embedding request and print the API response.
+
+Review `src/embeddings_03.gleam` for additional notes on configuring optional
+parameters.

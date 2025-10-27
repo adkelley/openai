@@ -1,3 +1,4 @@
+/// Issues a single chat completion request and prints the assistant response.
 import envoy
 import gleam/io
 import gleam/list
@@ -5,6 +6,7 @@ import gleam/list
 import openai/chat/completions
 import openai/shared/types.{System, User}
 
+/// Sends a prompt to the Chat Completions API and writes the reply to stdout.
 pub fn main() -> Nil {
   let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
 

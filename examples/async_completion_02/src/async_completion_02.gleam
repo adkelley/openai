@@ -1,3 +1,4 @@
+/// Streams chat completion deltas and prints them as they arrive.
 import envoy
 import gleam/io
 import gleam/list
@@ -7,6 +8,7 @@ import openai/completions/types
 import openai/error
 import openai/types as shared
 
+/// Sets up a streaming chat completion request and consumes the events.
 pub fn main() -> Result(Nil, error.OpenaiError) {
   let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
 
@@ -27,6 +29,7 @@ pub fn main() -> Result(Nil, error.OpenaiError) {
   }
 }
 
+// Recursively pulls chunks from the active stream handler until completion.
 fn loop(handler: completions.StreamHandler) -> Result(Nil, error.OpenaiError) {
   case completions.stream_create_handler(handler) {
     Ok(completions.StreamChunk(completion_chunks)) -> {
