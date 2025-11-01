@@ -17,7 +17,7 @@ const responses_url = "https://api.openai.com/v1/responses"
 pub fn default_request() -> Request {
   Request(
     model: shared.GPT41Mini,
-    input: request.Text(""),
+    input: request.InputText(""),
     temperature: None,
     stream: None,
     tool_choice: None,
@@ -26,11 +26,11 @@ pub fn default_request() -> Request {
 }
 
 pub fn model(config: Request, model: shared.Model) {
-  Request(..config, model: model)
+  Request(..config, model:)
 }
 
-pub fn input(config: Request, input: String) -> Request {
-  Request(..config, input: request.Text(input))
+pub fn input(config: Request, input: request.Input) -> Request {
+  Request(..config, input:)
 }
 
 pub fn tool_choice(config: Request, tool_choice: request.ToolChoice) {
@@ -79,7 +79,13 @@ fn json_body(config: Request) -> String {
   json.object([
     #("model", shared.model_encoder(config.model)),
     case config.input {
-      request.Text(input) -> #("input", json.string(input))
+      request.InputText(text) -> #("input", json.string(text))
+      request.InputList(input_list) -> #(
+        "input",
+        json.array(input_list, fn(input_list_item) {
+          encoders.input_list_item_encoder(input_list_item)
+        }),
+      )
     },
     case config.temperature {
       Some(temperature) -> #("temperature", json.float(temperature))

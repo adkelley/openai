@@ -3,6 +3,89 @@ import gleam/list
 import gleam/option.{type Option}
 import openai/responses/types/request
 
+pub fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
+  let input_message_decoder = fn(input_message: request.InputMessage) -> Json {
+    let content_item_image_encoder = fn(
+      detail: String,
+      file_id: Option(String),
+      image_url: Option(String),
+    ) -> Json {
+      json.object([
+        #("type", json.string("input_image")),
+        #("detail", json.string(detail)),
+        case file_id {
+          option.None -> {
+            let assert option.Some(image_url) = image_url
+            #("image_url", json.string(image_url))
+          }
+          option.Some(file_id) -> #("file_id", json.string(file_id))
+        },
+      ])
+    }
+
+    let content_item_text_encoder = fn(text: String) -> Json {
+      json.object([
+        #("type", json.string("input_text")),
+        #("text", json.string(text)),
+      ])
+    }
+
+    let content_item_file_encoder = fn(
+      file_data: Option(String),
+      file_id: Option(String),
+      file_url: Option(String),
+      filename: Option(String),
+    ) -> Json {
+      json.object([
+        #("type", json.string("input_file")),
+        #("file_data", json.nullable(file_data, json.string)),
+        #("file_id", json.nullable(file_id, json.string)),
+        #("file_url", json.nullable(file_url, json.string)),
+        #("filename", json.nullable(filename, json.string)),
+      ])
+    }
+
+    let request.InputMessage(role:, content:) = input_message
+    let process_content = fn() -> Json {
+      case content {
+        request.ContentInputList(xs) -> {
+          json.array(xs, fn(x) {
+            case x {
+              request.ContentItemFile(
+                file_data:,
+                file_id:,
+                file_url:,
+                filename:,
+              ) ->
+                content_item_file_encoder(
+                  file_data,
+                  file_id,
+                  file_url,
+                  filename,
+                )
+              request.ContentItemImage(detail:, file_id:, image_url:) ->
+                content_item_image_encoder(detail, file_id, image_url)
+              request.ContentItemText(text:) -> content_item_text_encoder(text)
+            }
+          })
+        }
+        request.ContentInputText(text) -> json.string(text)
+      }
+    }
+    json.object([#("role", json.string(role)), #("content", process_content())])
+  }
+
+  case input_list_item {
+    request.InputListItemMessage(item_message) ->
+      input_message_decoder(item_message)
+    request.InputListItemReference(id:) ->
+      json.object([
+        #("id", json.string(id)),
+        #("type", json.string("item_reference")),
+      ])
+  }
+}
+
 // TODO support all options by replacing "none"
 pub fn tool_choice_encoder(tool_choice: request.ToolChoice) -> Json {
   case tool_choice {
