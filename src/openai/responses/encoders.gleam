@@ -1,9 +1,51 @@
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option}
-import openai/responses/types/request
+import openai/responses/types/request.{type Request}
+import openai/types as shared
 
-pub fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
+pub fn config_encoder(config: Request) -> Json {
+  json.object([
+    #("model", shared.model_encoder(config.model)),
+    case config.input {
+      request.InputText(text) -> #("input", json.string(text))
+      request.InputList(input_list) -> #(
+        "input",
+        json.array(input_list, fn(input_list_item) {
+          input_list_item_encoder(input_list_item)
+        }),
+      )
+    },
+    case config.instructions {
+      option.None -> #("instructions", json.null())
+      option.Some(instructions) -> #("instructions", json.string(instructions))
+    },
+    case config.temperature {
+      option.Some(temperature) -> #("temperature", json.float(temperature))
+      option.None -> #("temperature", json.null())
+    },
+    case config.stream {
+      option.Some(stream) -> #("stream", json.bool(stream))
+      option.None -> #("stream", json.null())
+    },
+    case config.tool_choice {
+      option.Some(tool_choice) -> #(
+        "tool_choice",
+        tool_choice_encoder(tool_choice),
+      )
+      option.None -> #("tool_choice", json.null())
+    },
+    case config.tools {
+      option.Some(tools) -> #(
+        "tools",
+        json.preprocessed_array(tools_encoder(tools)),
+      )
+      option.None -> #("tools", json.null())
+    },
+  ])
+}
+
+fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
   let input_message_decoder = fn(input_message: request.InputMessage) -> Json {
     let content_item_image_encoder = fn(
       detail: String,
@@ -87,7 +129,7 @@ pub fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
 }
 
 // TODO support all options by replacing "none"
-pub fn tool_choice_encoder(tool_choice: request.ToolChoice) -> Json {
+fn tool_choice_encoder(tool_choice: request.ToolChoice) -> Json {
   case tool_choice {
     request.Auto -> json.string("auto")
     request.ComputerUsePreview -> json.string("none")
@@ -165,7 +207,7 @@ fn allowed_domains_encoder(allowed_domains: Option(List(String))) -> Json {
   }
 }
 
-pub fn tools_encoder(tools: List(request.Tools)) -> List(Json) {
+fn tools_encoder(tools: List(request.Tools)) -> List(Json) {
   list.map(tools, fn(tool: request.Tools) {
     case tool {
       request.WebSearch(filters, search_context_size, user_location) -> {

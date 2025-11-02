@@ -18,6 +18,7 @@ pub fn default_request() -> Request {
   Request(
     model: shared.GPT41Mini,
     input: request.InputText(""),
+    instructions: None,
     temperature: None,
     stream: None,
     tool_choice: None,
@@ -31,6 +32,10 @@ pub fn model(config: Request, model: shared.Model) {
 
 pub fn input(config: Request, input: request.Input) -> Request {
   Request(..config, input:)
+}
+
+pub fn instructions(config: Request, instructions: Option(String)) -> Request {
+  Request(..config, instructions:)
 }
 
 pub fn tool_choice(config: Request, tool_choice: request.ToolChoice) {
@@ -55,7 +60,7 @@ pub fn create(
   // I think this assert is Ok
   let assert Ok(base_req) = http_request.to(responses_url)
 
-  let body = json_body(config)
+  let body = encoders.config_encoder(config) |> json.to_string
 
   let req =
     base_req
@@ -71,44 +76,4 @@ pub fn create(
   )
 
   Ok(result)
-}
-
-// 
-// region:    --- Json encoding
-fn json_body(config: Request) -> String {
-  json.object([
-    #("model", shared.model_encoder(config.model)),
-    case config.input {
-      request.InputText(text) -> #("input", json.string(text))
-      request.InputList(input_list) -> #(
-        "input",
-        json.array(input_list, fn(input_list_item) {
-          encoders.input_list_item_encoder(input_list_item)
-        }),
-      )
-    },
-    case config.temperature {
-      Some(temperature) -> #("temperature", json.float(temperature))
-      None -> #("temperature", json.null())
-    },
-    case config.stream {
-      Some(stream) -> #("stream", json.bool(stream))
-      None -> #("stream", json.null())
-    },
-    case config.tool_choice {
-      Some(tool_choice) -> #(
-        "tool_choice",
-        encoders.tool_choice_encoder(tool_choice),
-      )
-      None -> #("tool_choice", json.null())
-    },
-    case config.tools {
-      Some(tools) -> #(
-        "tools",
-        json.preprocessed_array(encoders.tools_encoder(tools)),
-      )
-      None -> #("tools", json.null())
-    },
-  ])
-  |> json.to_string
 }

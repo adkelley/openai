@@ -1,5 +1,5 @@
 import gleam/dynamic/decode.{type Decoder}
-import gleam/http/response.{type Response, Response}
+import gleam/http/response.{type Response}
 import gleam/httpc.{type HttpError}
 import gleam/json
 import gleam/result

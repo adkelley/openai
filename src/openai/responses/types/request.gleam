@@ -5,6 +5,7 @@ pub type Request {
   Request(
     model: shared.Model,
     input: Input,
+    instructions: Option(String),
     temperature: Option(Float),
     stream: Option(Bool),
     tool_choice: Option(ToolChoice),
