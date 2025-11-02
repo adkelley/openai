@@ -31,11 +31,13 @@ pub fn main() -> Result(Response, OpenaiError) {
       ]),
     ))
   let input = request.InputList([input_list_item])
+  let instructions = "You are a coding assistant that talks like a pirate"
 
   let config =
     responses.default_request()
     |> responses.model(shared.GPT41)
     |> responses.input(input)
+    |> responses.instructions(Some(instructions))
 
   let response = responses.create(api_key, config)
   echo response
