@@ -54,9 +54,7 @@ fn filters_decoder() -> Decoder(response.Filters) {
   decode.success(response.Filters(allowed_domains:))
 }
 
-pub fn web_search_decoder() {
-  use type_ <- decode.field("type", decode.string)
-  assert type_ == "web_search"
+fn web_search_decoder() -> Decoder(response.Tool) {
   use search_context_size <- decode.field(
     "search_context_size",
     decode.optional(decode.string),
@@ -70,6 +68,46 @@ pub fn web_search_decoder() {
     search_context_size:,
     filters:,
     user_location:,
+  ))
+}
+
+fn mcp_decoder() -> Decoder(response.Tool) {
+  let require_approval_decoder = fn() {
+    let always_decoder = fn() {
+      use read_only <- decode.field("read_only", decode.optional(decode.bool))
+      use tool_names <- decode.field("tool_names", decode.list(decode.string))
+      decode.success(response.Always(read_only:, tool_names:))
+    }
+    let never_decoder = fn() {
+      use read_only <- decode.field("read_only", decode.optional(decode.bool))
+      use tool_names <- decode.field("tool_names", decode.list(decode.string))
+      decode.success(response.Never(read_only:, tool_names:))
+    }
+    use always <- decode.field("always", decode.optional(always_decoder()))
+    use never <- decode.field("never", decode.optional(never_decoder()))
+    decode.success(response.ToolMcpRequireApproval(always:, never:))
+  }
+  use allowed_tools <- decode.field(
+    "allowed_tools",
+    decode.optional(decode.list(decode.string)),
+  )
+
+  use require_approval <- decode.field(
+    "require_approval",
+    require_approval_decoder(),
+  )
+  use server_description <- decode.field(
+    "server_description",
+    decode.optional(decode.string),
+  )
+  use server_url <- decode.field("server_url", decode.string)
+  use server_label <- decode.field("server_label", decode.string)
+  decode.success(response.Mcp(
+    allowed_tools:,
+    require_approval:,
+    server_description:,
+    server_url:,
+    server_label:,
   ))
 }
 
@@ -133,11 +171,12 @@ fn comparison_filter_decoder() -> Decoder(response.FileSearchFilters) {
   decode.success(response.ComparisonFilter(key:, type_:, value:))
 }
 
-pub fn tool_decoder() -> Decoder(response.Tool) {
+fn tool_decoder() -> Decoder(response.Tool) {
   decode.one_of(function_decoder(), or: [
     file_search_decoder(),
     computer_use_decoder(),
     web_search_decoder(),
+    mcp_decoder(),
   ])
 }
 
@@ -171,38 +210,56 @@ fn file_search_decoder() -> Decoder(response.Tool) {
   ))
 }
 
-fn file_citation_decoder() {
-  use file_id <- decode.field("file_id", decode.string)
-  use index <- decode.field("index", decode.int)
-  decode.success(response.FileCitation(file_id:, index:))
-}
-
-fn url_citation_decoder() {
-  use end_index <- decode.field("end_index", decode.int)
-  use start_index <- decode.field("start_index", decode.int)
-  use title <- decode.field("title", decode.string)
-  use url <- decode.field("url", decode.string)
-  decode.success(response.URLCitation(end_index:, start_index:, title:, url:))
-}
-
-fn container_file_citation_decoder() {
-  todo
-}
-
-fn file_path_decoder() {
-  use file_id <- decode.field("file_id", decode.string)
-  use index <- decode.field("index", decode.int)
-  decode.success(response.FilePath(file_id:, index:))
-}
-
 pub fn annotation_decoder() {
+  let file_citation_decoder = fn() {
+    use _file_citation <- decode.field("type", decode.string)
+    use file_id <- decode.field("file_id", decode.string)
+    use index <- decode.field("index", decode.int)
+    decode.success(response.FileCitation(file_id:, index:))
+  }
+
+  let file_path_decoder = fn() {
+    use _file_path <- decode.field("type", decode.string)
+    use file_id <- decode.field("file_id", decode.string)
+    use index <- decode.field("index", decode.int)
+    decode.success(response.FilePath(file_id:, index:))
+  }
+
+  let url_citation_decoder = fn() {
+    use _url_citation <- decode.field("type", decode.string)
+    use end_index <- decode.field("end_index", decode.int)
+    use start_index <- decode.field("start_index", decode.int)
+    use title <- decode.field("title", decode.string)
+    use url <- decode.field("url", decode.string)
+    decode.success(response.URLCitation(end_index:, start_index:, title:, url:))
+  }
+
+  let container_file_citation_decoder = fn() {
+    use _container_file_citation <- decode.field("type", decode.string)
+    use container_id <- decode.field("container_id", decode.string)
+    use end_index <- decode.field("end_index", decode.int)
+    use file_id <- decode.field("file_id", decode.string)
+    use filename <- decode.field("filename", decode.string)
+    use start_index <- decode.field("start_index", decode.int)
+    decode.success(response.ContainerFileCitation(
+      container_id:,
+      end_index:,
+      file_id:,
+      filename:,
+      start_index:,
+    ))
+  }
+
   use type_ <- decode.field("type", decode.string)
   case type_ {
     "file_citation" -> file_citation_decoder()
     "url_citation" -> url_citation_decoder()
     "container_file_citation" -> container_file_citation_decoder()
     "file_path" -> file_path_decoder()
-    _ -> panic
+    _ -> {
+      echo "annotation_decoder"
+      panic
+    }
   }
 }
 
@@ -238,27 +295,29 @@ fn instructions_decoder() {
   )
 }
 
-fn output_text_decoder() {
-  use text <- decode.field("text", decode.string)
-  use annotations <- decode.field(
-    "annotations",
-    decode.list(annotation_decoder()),
-  )
-  decode.success(response.OutputText(text:, annotations:))
-}
-
-fn content_item_decoder() {
-  use type_ <- decode.field("type", decode.string)
-  case type_ {
-    "output_text" -> output_text_decoder()
-    _ -> panic
-  }
-}
-
 fn output_decoder() {
   use type_ <- decode.field("type", decode.string)
   case type_ {
     "message" -> {
+      let output_text_decoder = fn() {
+        use text <- decode.field("text", decode.string)
+        use annotations <- decode.field(
+          "annotations",
+          decode.list(annotation_decoder()),
+        )
+        decode.success(response.OutputText(text:, annotations:))
+      }
+
+      let content_item_decoder = fn() {
+        use type_ <- decode.field("type", decode.string)
+        case type_ {
+          "output_text" -> output_text_decoder()
+          _ -> {
+            echo type_
+            panic
+          }
+        }
+      }
       use id <- decode.field("id", decode.string)
       use status <- decode.field("status", decode.string)
       use role <- decode.field("role", decode.string)
@@ -266,17 +325,114 @@ fn output_decoder() {
         "content",
         decode.list(content_item_decoder()),
       )
-      decode.success(response.Message(content:, id:, role:, status:))
+      decode.success(response.OutputMessage(content:, id:, role:, status:))
     }
+
     "web_search_call" -> {
+      let action_decoder = fn() -> Decoder(response.Action) {
+        let search_decoder = fn() {
+          use query <- decode.field("query", decode.string)
+          use sources <- decode.optional_field(
+            "sources",
+            response.Sources(url: "n/a"),
+            sources_decoder(),
+          )
+          decode.success(response.SearchAction(query:, sources:))
+        }
+        use type_ <- decode.field("type", decode.string)
+        case type_ {
+          "search" -> search_decoder()
+          _ -> {
+            echo "action_decoder paniced"
+            panic
+          }
+        }
+      }
+
       use id <- decode.field("id", decode.string)
       use status <- decode.field("status", decode.string)
       use action <- decode.field("action", action_decoder())
-      decode.success(response.WebSearchCall(id:, action:, status:))
+      decode.success(response.OutputWebSearchCall(id:, action:, status:))
+    }
+
+    "mcp_list_tools" -> {
+      let tool_item_decoder = fn() -> Decoder(response.OutputMcpListTools) {
+        use description <- decode.field("description", decode.string)
+        use name <- decode.field("name", decode.string)
+        decode.success(response.OutputMcpToolItem(description:, name:))
+      }
+      use id <- decode.field("id", decode.string)
+      use server_label <- decode.field("server_label", decode.string)
+      use tools <- decode.field("tools", decode.list(tool_item_decoder()))
+      decode.success(response.OutputMcpListTools(id:, server_label:, tools:))
+    }
+    "reasoning" -> {
+      let summary_decoder = fn() -> Decoder(response.OutputReasoningSummary) {
+        use text <- decode.field("text", decode.string)
+        decode.success(response.OutputReasoningSummary(text:))
+      }
+      let output_reasoning_content_decoder = fn() -> Decoder(
+        response.OutputReasoningContent,
+      ) {
+        use text <- decode.field("text", decode.string)
+        decode.success(response.OutputReasoningContent(text:))
+      }
+      use id <- decode.field("id", decode.string)
+      use summary <- decode.field("summary", decode.list(summary_decoder()))
+      use content <- decode.optional_field(
+        "content",
+        [],
+        decode.list(output_reasoning_content_decoder()),
+      )
+      decode.success(response.OutputReasoning(id:, summary:, content:))
+    }
+    "mcp_call" -> {
+      let mcp_call_error_decoder = fn() -> Decoder(response.OutputMcpCallError) {
+        use code <- decode.field("call", decode.int)
+        use message <- decode.field("text", decode.string)
+        decode.success(response.OutputMcpCallError(code:, message:))
+      }
+      use id <- decode.field("id", decode.string)
+      use status <- decode.field("status", decode.string)
+      use approval_request_id <- decode.field(
+        "approval_request_id",
+        decode.optional(decode.string),
+      )
+      use arguments <- decode.field("arguments", decode.string)
+      use error <- decode.field(
+        "error",
+        decode.optional(mcp_call_error_decoder()),
+      )
+      use name <- decode.field("name", decode.string)
+      use output <- decode.field("output", decode.string)
+      use server_label <- decode.field("server_label", decode.string)
+      decode.success(response.OutputMcpCall(
+        id:,
+        status:,
+        approval_request_id:,
+        arguments:,
+        error:,
+        name:,
+        output:,
+        server_label:,
+      ))
+    }
+    "mcp_approval_request" -> {
+      use id <- decode.field("id", decode.string)
+      use arguments <- decode.field("arguments", decode.string)
+      use name <- decode.field("name", decode.string)
+      use server_label <- decode.field("server_label", decode.string)
+      decode.success(response.OutputMcpApprovalRequest(
+        id:,
+        arguments:,
+        name:,
+        server_label:,
+      ))
     }
 
     _ -> {
-      echo "output not found"
+      echo "output decoder case not found"
+      echo type_
       panic
     }
   }
@@ -299,26 +455,6 @@ fn text_decoder() {
   decode.success(response.Text(format:, verbosity:))
 }
 
-pub fn action_decoder() -> Decoder(response.Action) {
-  let search_decoder = fn() {
-    use query <- decode.field("query", decode.string)
-    use sources <- decode.optional_field(
-      "sources",
-      response.Sources(url: "n/a"),
-      sources_decoder(),
-    )
-    decode.success(response.SearchAction(query:, sources:))
-  }
-  use type_ <- decode.field("type", decode.string)
-  case type_ {
-    "search" -> search_decoder()
-    _ -> {
-      echo "action_decoder paniced"
-      panic
-    }
-  }
-}
-
 pub fn response_decoder() -> decode.Decoder(Response) {
   // TODO better error handling
   use error <- decode.field("error", decode.optional(error_decoder()))
@@ -327,10 +463,9 @@ pub fn response_decoder() -> decode.Decoder(Response) {
   // object is always equal to response
   assert object == "response"
   use background <- decode.field("background", decode.bool)
-  use id <- decode.field("id", decode.string)
-  use created_at <- decode.field("created_at", decode.int)
-  use status <- decode.field("status", decode.string)
   use billing <- decode.field("billing", billing_decoder())
+  use created_at <- decode.field("created_at", decode.int)
+  use id <- decode.field("id", decode.string)
   use incomplete_details <- decode.field(
     "incomplete_details",
     decode.optional(incomplete_details_decoder()),
@@ -348,6 +483,7 @@ pub fn response_decoder() -> decode.Decoder(Response) {
     decode.optional(decode.int),
   )
   use model <- decode.field("model", decode.string)
+  use status <- decode.field("status", decode.string)
   use output <- decode.field("output", decode.list(output_decoder()))
   use parallel_tool_calls <- decode.field("parallel_tool_calls", decode.bool)
   use previous_response_id <- decode.field(
@@ -368,7 +504,7 @@ pub fn response_decoder() -> decode.Decoder(Response) {
   use temperature <- decode.field("temperature", decode.float)
   use text <- decode.field("text", text_decoder())
   use tool_choice <- decode.field("tool_choice", decode.string)
-  use tools <- decode.field("tools", decode.list(web_search_decoder()))
+  use tools <- decode.field("tools", decode.list(tool_decoder()))
   use top_logprobs <- decode.field("top_logprobs", decode.int)
   use top_p <- decode.field("top_p", decode.float)
   use truncation <- decode.field("truncation", decode.string)
@@ -378,7 +514,6 @@ pub fn response_decoder() -> decode.Decoder(Response) {
     "metadata",
     decode.dict(decode.string, decode.string),
   )
-  // echo "metadata"
 
   decode.success(Response(
     background:,
@@ -413,4 +548,3 @@ pub fn response_decoder() -> decode.Decoder(Response) {
     metadata:,
   ))
 }
-// Ok(Response(400, [#("connection", "close"), #("date", "Thu, 16 Oct 2025 22:16:53 GMT"), #("server", "cloudflare"), #("content-length", "280"), #("content-type", "application/json"), #("openai-version", "2020-10-01"), #("openai-organization", "adkpartners"), #("openai-project", "proj_owLw0yGl71UIfzp1TWZB7P10"), #("x-request-id", "req_32f104ee71364674a9fb9d7253137a58"), #("openai-processing-ms", "21"), #("x-envoy-upstream-service-time", "25"), #("cf-cache-status", "DYNAMIC"), #("set-cookie", "__cf_bm=HBspPcMhnyR_LVCBv4eiN98vOgugJy8QbNdaZgpCxcQ-1760653013-1.0.1.1-xjcO5il36WDjXgVq3URIrwga.pFF80TkTM2liY9cLFz8iQWBZbGnsc9TnkzrYUhwQdfFevc5XQa5WhTzQraWpV3WHZC8qXrGeQ92Gak9hFo; path=/; expires=Thu, 16-Oct-25 22:46:53 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None"), #("strict-transport-security", "max-age=31536000; includeSubDomains; preload"), #("x-content-type-options", "nosniff"), #("set-cookie", "_cfuvid=ZYBmKhVNgSzshmPFet.Qx_erJe.qfDzHlx_n5RFT34U-1760653013688-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None"), #("cf-ray", "98faec56cfd406ad-SJC"), #("alt-svc", "h3=\":443\"; ma=86400")], "{\n  \"error\": {\n    \"message\": \"Invalid 'tools[0].filters.allowed_domains': empty array. Expected an array with minimum length 1, but got an empty array instead.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"tools[0].filters.allowed_domains\",\n    \"code\": \"empty_array\"\n  }\n}"))

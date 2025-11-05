@@ -122,13 +122,66 @@ pub type Instructions {
 
 // This is the type key
 pub type Output {
-  Message(
+  OutputMessage(
     content: List(OutputContent),
     id: String,
     role: String,
     status: String,
   )
-  WebSearchCall(action: Action, id: String, status: String)
+  OutputWebSearchCall(action: Action, id: String, status: String)
+  OutputMcpListTools(
+    id: String,
+    server_label: String,
+    tools: List(OutputMcpListTools),
+  )
+  OutputReasoning(
+    /// The unique identifier of the reasoning content.
+    id: String,
+    /// Reasoning summary content.
+    summary: List(OutputReasoningSummary),
+    /// Reasoning text content.
+    content: List(OutputReasoningContent),
+  )
+  OutputMcpCall(
+    id: String,
+    status: String,
+    approval_request_id: Option(String),
+    arguments: String,
+    error: Option(OutputMcpCallError),
+    name: String,
+    output: String,
+    server_label: String,
+  )
+  OutputMcpApprovalRequest(
+    id: String,
+    arguments: String,
+    name: String,
+    server_label: String,
+  )
+}
+
+pub type OutputMcpCallError {
+  OutputMcpCallError(code: Int, message: String)
+}
+
+/// Reasoning text content.
+pub type OutputReasoningSummary {
+  OutputReasoningSummary(text: String)
+}
+
+pub type OutputReasoningContent {
+  OutputReasoningContent(text: String)
+}
+
+pub type OutputMcpListTools {
+  OutputMcpToolItem(
+    // TODO How to parse annotations
+    // annotations: Option(List(Annotation)),
+    description: String,
+    // TODO ponder parsing input schema
+    // input_schema: InputSchema,
+    name: String,
+  )
 }
 
 pub type OutputContent {
@@ -182,15 +235,6 @@ pub type Sources {
   )
 }
 
-// pub fn sources_decoder() -> Decoder(Sources) {
-//   // The type of source. Always url.
-//   use type_ <- decode.field("type", decode.string)
-//   // TODO Error or panic?
-//   assert type_ == "url"
-//   use url <- decode.field("url", decode.string)
-//   decode.success(Sources(url:))
-// }
-
 pub type Annotation {
   /// A citation to a file.
   FileCitation(
@@ -217,42 +261,20 @@ pub type Annotation {
     /// The index of the file in the list of files.
     index: Int,
   )
+  /// A citation for a container file used to generate a model response.
+  ContainerFileCitation(
+    /// The ID of the container file.
+    container_id: String,
+    /// The index of the last character of the container file citation in the message.
+    end_index: Int,
+    /// The ID of the file.
+    file_id: String,
+    /// The filename of the container file cited.
+    filename: String,
+    /// The index of the first character of the container file citation in the message.
+    start_index: Int,
+  )
 }
-
-// fn file_citation_decoder() {
-//   use file_id <- decode.field("file_id", decode.string)
-//   use index <- decode.field("index", decode.int)
-//   decode.success(FileCitation(file_id:, index:))
-// }
-
-// fn url_citation_decoder() {
-//   use end_index <- decode.field("end_index", decode.int)
-//   use start_index <- decode.field("start_index", decode.int)
-//   use title <- decode.field("title", decode.string)
-//   use url <- decode.field("url", decode.string)
-//   decode.success(URLCitation(end_index:, start_index:, title:, url:))
-// }
-
-// fn container_file_citation_decoder() {
-//   todo
-// }
-
-// fn file_path_decoder() {
-//   use file_id <- decode.field("file_id", decode.string)
-//   use index <- decode.field("index", decode.int)
-//   decode.success(FilePath(file_id:, index:))
-// }
-
-// pub fn annotation_decoder() {
-//   use type_ <- decode.field("type", decode.string)
-//   case type_ {
-//     "file_citation" -> file_citation_decoder()
-//     "url_citation" -> url_citation_decoder()
-//     "container_file_citation" -> container_file_citation_decoder()
-//     "file_path" -> file_path_decoder()
-//     _ -> panic
-//   }
-// }
 
 pub type Reasoning {
   Reasoning(
@@ -313,41 +335,28 @@ pub type Tool {
     /// Filters for the search.
     filters: Option(Filters),
   )
+  Mcp(
+    allowed_tools: Option(List(String)),
+    // TODO parse headers?
+    // headers: Option(List(#(String, String))),
+    require_approval: ToolMcpRequireApproval,
+    server_description: Option(String),
+    server_url: String,
+    server_label: String,
+  )
 }
 
-// pub fn tool_decoder() -> Decoder(Tool) {
-//   decode.one_of(function_decoder(), or: [
-//     file_search_decoder(),
-//     computer_use_decoder(),
-//     web_search_decoder(),
-//   ])
-// }
+pub type ToolMcpRequireApproval {
+  ToolMcpRequireApproval(always: Option(Always), never: Option(Never))
+}
 
-// fn computer_use_decoder() -> Decoder(Tool) {
-//   use display_height <- decode.field("display_height", decode.int)
-//   use display_width <- decode.field("display_width", decode.int)
-//   use environment <- decode.field("environment", decode.string)
-//   decode.success(ComputerUse(display_height:, display_width:, environment:))
-// }
+pub type Always {
+  Always(read_only: Option(Bool), tool_names: List(String))
+}
 
-// fn file_search_decoder() -> Decoder(Tool) {
-//   use vector_store_ids <- decode.field(
-//     "vector_store_ids",
-//     decode.list(decode.string),
-//   )
-//   use filters <- decode.field("filters", file_search_filter_decoder())
-//   use max_num_results <- decode.field("max_num_results", decode.int)
-//   use ranking_options <- decode.field(
-//     "ranking_options",
-//     ranking_options_decoder(),
-//   )
-//   decode.success(FileSearch(
-//     vector_store_ids:,
-//     filters:,
-//     max_num_results:,
-//     ranking_options:,
-//   ))
-// }
+pub type Never {
+  Never(read_only: Option(Bool), tool_names: List(String))
+}
 
 pub type FileSearchFilters {
   ComparisonFilter(
@@ -360,17 +369,6 @@ pub type FileSearchFilters {
   )
 }
 
-// fn file_search_filter_decoder() -> Decoder(FileSearchFilters) {
-//   decode.one_of(comparison_filter_decoder(), [])
-// }
-
-// fn comparison_filter_decoder() -> Decoder(FileSearchFilters) {
-//   use key <- decode.field("key", decode.string)
-//   use type_ <- decode.field("type", decode.string)
-//   use value <- decode.field("value", value_decoder())
-//   decode.success(ComparisonFilter(key:, type_:, value:))
-// }
-
 pub type Value {
   ValueString(String)
   ValueFloat(Float)
@@ -380,126 +378,9 @@ pub type Value {
   ValueArrayBool(List(Bool))
 }
 
-// fn value_decoder() -> Decoder(Value) {
-//   let value_string_decoder = fn() {
-//     use value_string <- decode.field("value", decode.string)
-//     decode.success(ValueString(value_string))
-//   }
-//   let value_float_decoder = fn() {
-//     use value_float <- decode.field("value", decode.float)
-//     decode.success(ValueFloat(value_float))
-//   }
-//   let value_bool_decoder = fn() {
-//     use value_bool <- decode.field("value", decode.bool)
-//     decode.success(ValueBool(value_bool))
-//   }
-//   let value_array_string_decoder = fn() {
-//     use value_array <- decode.field("value", decode.list(decode.string))
-//     decode.success(ValueArrayString(value_array))
-//   }
-//   let value_array_float_decoder = fn() {
-//     use value_array_float <- decode.field("value", decode.list(decode.float))
-//     decode.success(ValueArrayFloat(value_array_float))
-//   }
-//   let value_array_bool_decoder = fn() {
-//     use value_array_bool <- decode.field("value", decode.list(decode.bool))
-//     decode.success(ValueArrayBool(value_array_bool))
-//   }
-
-//   decode.one_of(value_string_decoder(), [
-//     value_float_decoder(),
-//     value_bool_decoder(),
-//     value_array_string_decoder(),
-//     value_array_float_decoder(),
-//     value_array_bool_decoder(),
-//   ])
-// }
-
 pub type RankingOptions {
   RankingOptions(ranker: String, score_threshold: Float)
 }
-
-// fn ranking_options_decoder() -> Decoder(RankingOptions) {
-//   use ranker <- decode.field("ranker", decode.string)
-//   use score_threshold <- decode.field("score_threshold", decode.float)
-//   decode.success(RankingOptions(ranker:, score_threshold:))
-// }
-
-// fn function_decoder() {
-//   use name <- decode.field("name", decode.string)
-//   use parameters <- decode.field("parameters", decode.string)
-//   use strict <- decode.field("strict", decode.bool)
-//   use description <- decode.field("description", decode.optional(decode.string))
-//   decode.success(Function(name:, parameters:, strict:, description:))
-// }
-
-// fn file_search_filter_decoder() {
-//   todo
-// }
-
-// fn ranking_options_decoder() {
-//   decode.string
-// }
-
-// fn file_search_decoder() {
-//   use _type_ <- decode.field("type", decode.string)
-//   use vector_store_ids <- decode.field(
-//     "vector_store_ids",
-//     decode.list(decode.string),
-//   )
-//   use filters <- decode.field("filters", file_search_filter_decoder())
-//   use max_num_results <- decode.field("max_num_results", decode.int)
-//   use ranking_options <- decode.field(
-//     "ranking_options",
-//     ranking_options_decoder(),
-//   )
-//   decode.success(response.FileSearch(
-//     vector_store_ids:,
-//     filters:,
-//     max_num_results:,
-//     ranking_options:,
-//   ))
-// }
-
-// fn environment_decoder() {
-//   decode.string
-// }
-
-// fn computer_use_decoder() {
-//   use display_height <- decode.field("display_height", decode.int)
-//   use display_width <- decode.field("display_width", decode.int)
-//   use environment <- decode.field("environment", environment_decoder())
-//   decode.success(response.ComputerUse(
-//     display_height:,
-//     display_width:,
-//     environment:,
-//   ))
-// }
-
-// fn search_context_size_decoder() {
-//   decode.string
-// }
-
-// fn user_location_decoder() {
-//   decode.string
-// }
-
-// pub fn web_search_decoder() {
-//   use type_ <- decode.field("type", decode.string)
-//   assert type_ == "web_search"
-//   use search_context_size <- decode.field(
-//     "search_context_size",
-//     decode.optional(decode.string),
-//   )
-//   use filters <- decode.field("filters", decode.optional(filters_decoder()))
-//   use user_location <- decode.field(
-//     "user_location",
-//     decode.optional(user_location_decoder()),
-//   )
-//   decode.success(WebSearch(search_context_size:, filters:, user_location:))
-// }
-
-// \"tools\": [\n    {\n      \"type\": \"web_search\",\n      \"filters\": null,\n      \"search_context_size\": \"medium\",\n      \"user_location\": {\n        \"type\": \"approximate\",\n        \"city\": null,\n        \"country\": \"US\",\n        \"region\": null,\n        \"timezone\": null\n      }\n    }\n  ],\n
 
 pub type Filters {
   Filters(allowed_domains: Option(List(String)))
@@ -528,15 +409,6 @@ pub type UserLocation {
   )
 }
 
-// fn user_location_decoder() -> Decoder(UserLocation) {
-//   use city <- decode.field("city", decode.optional(decode.string))
-//   use country <- decode.field("country", decode.optional(decode.string))
-//   use region <- decode.field("region", decode.optional(decode.string))
-//   use timezone <- decode.field("timezone", decode.optional(decode.string))
-//   use type_ <- decode.field("type", decode.optional(decode.string))
-//   decode.success(UserLocation(city:, country:, region:, timezone:, type_:))
-// }
-
 pub type Usage {
   Usage(
     input_tokens: Int,
@@ -546,35 +418,6 @@ pub type Usage {
     total_tokens: Int,
   )
 }
-
-// pub fn usage_decoder() {
-//   let input_tokens_details_decoder = fn() {
-//     use cached_tokens <- decode.field("cached_tokens", decode.int)
-//     decode.success(InputTokensDetails(cached_tokens:))
-//   }
-//   let output_tokens_details_decoder = fn() {
-//     use reasoning_tokens <- decode.field("reasoning_tokens", decode.int)
-//     decode.success(OutputTokensDetails(reasoning_tokens:))
-//   }
-//   use input_tokens <- decode.field("input_tokens", decode.int)
-//   use input_tokens_details <- decode.field(
-//     "input_tokens_details",
-//     input_tokens_details_decoder(),
-//   )
-//   use output_tokens <- decode.field("output_tokens", decode.int)
-//   use output_tokens_details <- decode.field(
-//     "output_tokens_details",
-//     output_tokens_details_decoder(),
-//   )
-//   use total_tokens <- decode.field("total_tokens", decode.int)
-//   decode.success(Usage(
-//     input_tokens:,
-//     input_tokens_details:,
-//     output_tokens:,
-//     output_tokens_details:,
-//     total_tokens:,
-//   ))
-// }
 
 pub type InputTokensDetails {
   InputTokensDetails(cached_tokens: Int)

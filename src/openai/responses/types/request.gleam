@@ -1,3 +1,4 @@
+import gleam/dict.{type Dict}
 import gleam/option.{type Option}
 import openai/types as shared
 
@@ -97,6 +98,60 @@ pub type Tools {
     /// One of low, medium, or high. medium is the default.
     search_context_size: Option(SearchContextSize),
     user_location: Option(UserLocation),
+  )
+  Mcp(
+    /// A label for this MCP server, used to identify it in tool calls.
+    server_label: String,
+    /// List of allowed tool names or a filter object.
+    allowed_tools: Option(McpAllowedTools),
+    /// An OAuth access token that can be used with a remote MCP server, either with a
+    /// custom MCP server URL or a service connector. Your application must handle the OAuth
+    /// authorization flow and provide the token here.
+    authorization: Option(String),
+    // TODO: Added supported connectors (https://platform.openai.com/docs/guides/tools-connectors-mcp)
+    /// Identifier for service connectors, like those available in ChatGPT. One of server_url or
+    /// connector_id must be provided. Learn more about service connectors here:
+    /// https://platform.openai.com/docs/guides/tools-connectors-mcp
+    connector_id: Option(String),
+    /// Optional HTTP headers to send to the MCP server. Use for authentication or other purposes.
+    headers: Option(Dict(String, String)),
+    /// Specify which of the MCP server's tools require approval.
+    require_approval: Option(McpToolApproval),
+    /// Optional description of the MCP server, used to provide more context.
+    server_description: Option(String),
+    /// The URL for the MCP server. One of server_url or connector_id must be provided.
+    server_url: Option(String),
+  )
+}
+
+pub type McpToolApproval {
+  /// Specify which of the MCP server's tools require approval. Can be always, never, or a filter
+  /// object associated with tools that require approval.
+  McpToolApprovalFilter(
+    /// A filter object to specify which tools are allowed.
+    always: Option(McpToolFilter),
+    /// A filter object to specify which tools are allowed.
+    never: Option(McpToolFilter),
+  )
+  /// Specify a single approval policy for all tools. One of always or never. When set to always,
+  /// all tools will require approval. When set to never, all tools will not require approval.
+  McpToolApprovalSetting(String)
+}
+
+pub type McpAllowedTools {
+  /// A string array of allowed tools
+  McpAllowedTools(List(String))
+  /// A filter object to specify which tools are allowed.
+  McpAllowedToolsFilter(McpToolFilter)
+}
+
+pub type McpToolFilter {
+  McpToolFilter(
+    /// Indicates whether or not a tool modifies data or is read-only. If an MCP server
+    /// is annotated with readOnlyHint, it will match this filter.
+    read_only: Option(Bool),
+    /// List of allowed tool names.
+    tool_names: Option(List(String)),
   )
 }
 

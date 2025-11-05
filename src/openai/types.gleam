@@ -33,6 +33,7 @@ pub type Model {
   GPT4oMini
   GPT4Turbo
   GPT4
+  GPT5
   GPT35Turbo
   ComputerUsePreview
   Other(String)
@@ -49,6 +50,7 @@ pub fn model_encoder(model: Model) -> Json {
     GPT4o -> "gpt-4o"
     GPT4oMini -> "gpt-4o-mini"
     GPT41Mini -> "gpt-4.1-mini"
+    GPT5 -> "gpt-5"
     O1 -> "o1"
     O1Mini -> "o1-mini"
     O1Pro -> "o1-pro"
