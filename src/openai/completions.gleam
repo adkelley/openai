@@ -102,12 +102,14 @@ pub fn stream_create(
     |> request.set_method(http.Post)
 
   use request_id <- result.try(
-    httpc.send_stream_request(req)
+    httpc.configure()
+    |> httpc.dispatch_stream_request(req)
     |> result.replace_error(error.BadResponse),
   )
 
-  let mapper = httpc.raw_stream_mapper()
-  let selector = process.new_selector() |> httpc.select_stream_messages(mapper)
+  let selector =
+    process.new_selector()
+    |> httpc.select_stream_messages(httpc.raw_stream_mapper())
 
   // Note: process.self() is not the pid that starts the stream, it's just a dummy
   // until the StreamStart messages returns the stream's pid

@@ -41,7 +41,10 @@ fn loop(handler: completions.StreamHandler) -> Result(Nil, error.OpenaiError) {
       loop(handler)
     }
     Ok(completions.StreamStart(handler_)) -> loop(handler_)
-    Ok(completions.StreamEnd) -> Ok(Nil)
+    Ok(completions.StreamEnd) -> {
+      io.println("")
+      Ok(Nil)
+    }
     Error(e) -> Error(e) |> echo
   }
 }
