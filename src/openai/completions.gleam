@@ -106,8 +106,7 @@ pub fn stream_create(
     |> result.replace_error(error.BadResponse),
   )
 
-  let mapper = httpc.raw_stream_mapper()
-  let selector = process.new_selector() |> httpc.select_stream_messages(mapper)
+  let selector = httpc.select_stream_messages()
 
   // Note: process.self() is not the pid that starts the stream, it's just a dummy
   // until the StreamStart messages returns the stream's pid
