@@ -1,4 +1,5 @@
 import gleam/dict.{type Dict}
+import gleam/dynamic
 import gleam/option.{type Option}
 
 pub type Response {
@@ -158,6 +159,15 @@ pub type Output {
     name: String,
     server_label: String,
   )
+  OutputFunctionCall(
+    status: String,
+    id: String,
+    call_id: String,
+    /// The name of the function to call.
+    name: String,
+    /// Function specifec Json to parse within the caller app
+    arguments: String,
+  )
 }
 
 pub type OutputMcpCallError {
@@ -296,17 +306,17 @@ pub type Format {
 }
 
 pub type Tool {
+  // TODO: Document these arguments
   /// Defines a function in your own code the model can choose to call. Learn more about [function calling](https://platform.openai.com/docs/guides/function-calling).
   Function(
-    /// The name of the function to call.
+    /// The function's name (e.g. get_weather)
     name: String,
-    /// A JSON schema object describing the parameters of the function.
-    /// TODO: Should this be a JSON type?
-    parameters: String,
-    /// Whether to enforce strict parameter validation.
+    /// Details on when and how to use the function
+    description: String,
+    /// JSON schema defining the function's input arguments
+    parameters: dynamic.Dynamic,
+    /// Whether to enforce strict mode for the function call
     strict: Bool,
-    /// A description of the function. Used by the model to determine whether or not to call the function.
-    description: Option(String),
   )
   /// A tool that searches for relevant content from uploaded files. Learn more about the [file search tool](https://platform.openai.com/docs/guides/tools-file-search).
   FileSearch(

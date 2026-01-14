@@ -41,7 +41,7 @@ pub fn config_encoder(config: Request) -> Json {
 }
 
 fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
-  let input_message_decoder = fn(input_message: request.InputMessage) -> Json {
+  let input_message_encoder = fn(input_message: request.InputMessage) -> Json {
     let content_item_image_encoder = fn(
       detail: String,
       file_id: Option(String),
@@ -82,39 +82,77 @@ fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
       ])
     }
 
-    let request.InputMessage(role:, content:) = input_message
-    let process_content = fn() -> Json {
-      case content {
-        request.ContentInputList(xs) -> {
-          json.array(xs, fn(x) {
-            case x {
-              request.ContentItemFile(
-                file_data:,
-                file_id:,
-                file_url:,
-                filename:,
-              ) ->
-                content_item_file_encoder(
-                  file_data,
-                  file_id,
-                  file_url,
-                  filename,
-                )
-              request.ContentItemImage(detail:, file_id:, image_url:) ->
-                content_item_image_encoder(detail, file_id, image_url)
-              request.ContentItemText(text:) -> content_item_text_encoder(text)
+    case input_message {
+      request.RoleContent(role:, content:) -> {
+        let process_content = fn() -> Json {
+          case content {
+            request.ContentInputList(xs) -> {
+              json.array(xs, fn(x) {
+                case x {
+                  request.ContentItemFile(
+                    file_data:,
+                    file_id:,
+                    file_url:,
+                    filename:,
+                  ) ->
+                    content_item_file_encoder(
+                      file_data,
+                      file_id,
+                      file_url,
+                      filename,
+                    )
+                  request.ContentItemImage(detail:, file_id:, image_url:) ->
+                    content_item_image_encoder(detail, file_id, image_url)
+                  request.ContentItemText(text:) ->
+                    content_item_text_encoder(text)
+                }
+              })
             }
-          })
+            request.ContentInputText(text) -> json.string(text)
+          }
         }
-        request.ContentInputText(text) -> json.string(text)
+        json.object([
+          #("role", json.string(role)),
+          #("content", process_content()),
+        ])
+      }
+      request.FunctionCallOutput(call_id:, output:) -> {
+        json.object([
+          #("type", json.string("function_call_output")),
+          #("call_id", json.string(call_id)),
+          #("output", output),
+        ])
+      }
+      request.OutputFunctionCall(status:, id:, call_id:, name:, arguments:) -> {
+        json.object([
+          #("type", json.string("function_call")),
+          #("status", json.string(status)),
+          #("id", json.string(id)),
+          #("call_id", json.string(call_id)),
+          #("name", json.string(name)),
+          #("arguments", json.string(arguments)),
+        ])
+      }
+      request.OutputReasoning(id:, summary:, content:) -> {
+        json.object([
+          #("type", json.string("reasoning")),
+          #("id", json.string(id)),
+          #(
+            "summary",
+            json.array(reasoning_summary_encoder(summary), json.string),
+          ),
+          #(
+            "content",
+            json.array(reasoning_content_encoder(content), json.string),
+          ),
+        ])
       }
     }
-    json.object([#("role", json.string(role)), #("content", process_content())])
   }
 
   case input_list_item {
     request.InputListItemMessage(item_message) ->
-      input_message_decoder(item_message)
+      input_message_encoder(item_message)
     request.InputListItemReference(id:) ->
       json.object([
         #("id", json.string(id)),
@@ -123,16 +161,39 @@ fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
   }
 }
 
+fn reasoning_summary_encoder(
+  summary: List(request.OutputReasoningSummary),
+) -> List(String) {
+  list.fold(summary, [], fn(acc, item) {
+    let request.OutputReasoningSummary(item_string) = item
+    list.prepend(acc, item_string)
+  })
+}
+
+fn reasoning_content_encoder(
+  content: List(request.OutputReasoningContent),
+) -> List(String) {
+  list.fold(content, [], fn(acc, item) {
+    let request.OutputReasoningContent(item_string) = item
+    list.prepend(acc, item_string)
+  })
+}
+
 // TODO support all options by replacing "none"
-fn tool_choice_encoder(tool_choice: request.ToolChoice) -> Json {
+fn tool_choice_encoder(tool_choice: request.FunctionToolChoice) -> Json {
   case tool_choice {
+    request.None -> json.null()
     request.Auto -> json.string("auto")
-    request.ComputerUsePreview -> json.string("none")
-    request.FileSearch -> json.string("none")
-    request.Function(_) -> json.string("none")
-    request.None -> json.string("none")
     request.Required -> json.string("required")
-    request.WebSearchPreview -> json.string("none")
+    request.AllowedTools(_allowed_tools) -> {
+      todo
+    }
+    request.ForcedFunction(request.FunctionName(name)) -> {
+      json.object([
+        #("type", json.string("function")),
+        #("name", json.string(name)),
+      ])
+    }
   }
 }
 
@@ -228,6 +289,8 @@ fn tools_encoder(tools: List(request.Tools)) -> List(Json) {
           server_description,
           server_url,
         )
+      request.FunctionCalling(name:, description:, parameters:, strict:) ->
+        function_calling_encoder(name, description, parameters, strict)
     }
   })
 }
@@ -311,6 +374,21 @@ fn mcp_encoder(
     require_approval_encoder(require_approval),
     #("server_description", json.nullable(server_description, json.string)),
     #("server_url", json.nullable(server_url, json.string)),
+  ])
+}
+
+fn function_calling_encoder(
+  name: String,
+  description: String,
+  parameters: Json,
+  strict: Bool,
+) {
+  json.object([
+    #("type", json.string("function")),
+    #("name", json.string(name)),
+    #("description", json.string(description)),
+    #("strict", json.bool(strict)),
+    #("parameters", parameters),
   ])
 }
 
