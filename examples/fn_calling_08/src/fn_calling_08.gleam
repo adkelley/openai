@@ -1,4 +1,5 @@
-/// Issues a Responses API call configured to delegate web search to an MCP server.
+/// Allow the API to select a function 'horoscope' to return a user's horoscope
+/// TODO: Should some of this data wrangling go into the responses.gleam code?
 import envoy
 import gleam/io
 import gleam/json.{type Json}
@@ -56,7 +57,7 @@ pub fn main() -> Result(Response, OpenaiError) {
       #("sign", json.string("Cancer")),
       #(
         "horoscope",
-        json.string("Next Tuesday you wuii befriend a  baby otter"),
+        json.string("Next Tuesday you will befriend a  baby otter"),
       ),
     ])
     |> json.to_string()
@@ -84,6 +85,10 @@ pub fn main() -> Result(Response, OpenaiError) {
   let assert Ok(response) = responses.create(api_key, config)
   // echo response.output
 
+  // TODO Should this merging of input and output go into
+  // `responses.gleam`
+  // Importantly [hop1, reasoning, call1, call2, out1, out2]
+
   let hop2 =
     list.fold(response.output, hop1, fn(acc, item) {
       case item {
@@ -96,13 +101,15 @@ pub fn main() -> Result(Response, OpenaiError) {
                   response.OutputReasoningSummary(text:) ->
                     list.prepend(acc, OutputReasoningSummary(text))
                 }
-              }),
+              })
+                |> list.reverse,
               content: list.fold(content, [], fn(acc, text_item) {
                 case text_item {
                   response.OutputReasoningContent(text:) ->
                     list.prepend(acc, OutputReasoningContent(text))
                 }
-              }),
+              })
+                |> list.reverse,
             )),
           ])
         }

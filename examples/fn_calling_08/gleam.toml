@@ -14,8 +14,8 @@ version = "1.0.0"
 
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
-openai = {path = "/Users/alexkelley/Dropbox/code/gleam/openai"}
-# openai = {git = "https://github.com/adkelley/openai", ref = "main"}
+# openai = {path = "/Users/alexkelley/Dropbox/code/gleam/openai"}
+openai = {git = "https://github.com/adkelley/openai", ref = "main"}
 envoy = ">= 1.0.2 and < 2.0.0"
 gleam_json = ">= 3.1.0 and < 4.0.0"
 
