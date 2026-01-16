@@ -139,11 +139,19 @@ fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
           #("id", json.string(id)),
           #(
             "summary",
-            json.array(reasoning_summary_encoder(summary), json.string),
+            json.array(summary, fn(x) {
+              case x {
+                request.OutputReasoningSummary(text:) -> json.string(text)
+              }
+            }),
           ),
           #(
             "content",
-            json.array(reasoning_content_encoder(content), json.string),
+            json.array(content, fn(x) {
+              case x {
+                request.OutputReasoningContent(text:) -> json.string(text)
+              }
+            }),
           ),
         ])
       }
@@ -159,24 +167,6 @@ fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
         #("type", json.string("item_reference")),
       ])
   }
-}
-
-fn reasoning_summary_encoder(
-  summary: List(request.OutputReasoningSummary),
-) -> List(String) {
-  list.fold(summary, [], fn(acc, item) {
-    let request.OutputReasoningSummary(item_string) = item
-    list.prepend(acc, item_string)
-  })
-}
-
-fn reasoning_content_encoder(
-  content: List(request.OutputReasoningContent),
-) -> List(String) {
-  list.fold(content, [], fn(acc, item) {
-    let request.OutputReasoningContent(item_string) = item
-    list.prepend(acc, item_string)
-  })
 }
 
 // TODO support all options by replacing "none"
