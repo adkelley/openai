@@ -123,6 +123,38 @@ fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
           #("output", output),
         ])
       }
+      request.OutputFunctionCall(status:, id:, call_id:, name:, arguments:) -> {
+        json.object([
+          #("type", json.string("function_call")),
+          #("status", json.string(status)),
+          #("id", json.string(id)),
+          #("call_id", json.string(call_id)),
+          #("name", json.string(name)),
+          #("arguments", json.string(arguments)),
+        ])
+      }
+      request.OutputReasoning(id:, summary:, content:) -> {
+        json.object([
+          #("type", json.string("reasoning")),
+          #("id", json.string(id)),
+          #(
+            "summary",
+            json.array(summary, fn(x) {
+              case x {
+                request.OutputReasoningSummary(text:) -> json.string(text)
+              }
+            }),
+          ),
+          #(
+            "content",
+            json.array(content, fn(x) {
+              case x {
+                request.OutputReasoningContent(text:) -> json.string(text)
+              }
+            }),
+          ),
+        ])
+      }
     }
   }
 

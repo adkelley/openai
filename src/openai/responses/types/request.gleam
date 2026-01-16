@@ -49,6 +49,33 @@ pub type InputMessage {
     // status: Option(InputMessageStatus)
   )
   FunctionCallOutput(call_id: String, output: Json)
+  OutputFunctionCall(
+    status: String,
+    id: String,
+    call_id: String,
+    /// The name of the function to call.
+    name: String,
+    /// Function specifec Json to parse within the caller app
+    arguments: String,
+  )
+  OutputReasoning(
+    /// The unique identifier of the reasoning content.
+    id: String,
+    /// Reasoning summary content.
+    summary: List(OutputReasoningSummary),
+    /// Reasoning text content.
+    content: List(OutputReasoningContent),
+  )
+}
+
+/// Reasoning text content.
+/// 
+pub type OutputReasoningSummary {
+  OutputReasoningSummary(text: String)
+}
+
+pub type OutputReasoningContent {
+  OutputReasoningContent(text: String)
 }
 
 pub type ContentInput {

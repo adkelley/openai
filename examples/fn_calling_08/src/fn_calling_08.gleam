@@ -1,6 +1,5 @@
 /// Issues a Responses API call configured to delegate web search to an MCP server.
 import envoy
-import gleam/dynamic/decode
 import gleam/io
 import gleam/json.{type Json}
 import gleam/list
@@ -10,7 +9,8 @@ import openai/error.{type OpenaiError}
 import openai/responses
 import openai/responses/types/request.{
   Auto, ContentInputText, FunctionCallOutput, FunctionCalling, InputList,
-  InputListItemMessage, RoleContent,
+  InputListItemMessage, OutputFunctionCall, OutputReasoning,
+  OutputReasoningContent, OutputReasoningSummary, RoleContent,
 }
 import openai/responses/types/response.{type Response}
 import openai/types as shared
@@ -52,84 +52,100 @@ pub fn main() -> Result(Response, OpenaiError) {
     )
 
   let get_horoscope = fn(_arguments: String) -> String {
-    "Cancer" <> " Next Tuesday you will befriend a baby otter."
+    json.object([
+      #("sign", json.string("Cancer")),
+      #(
+        "horoscope",
+        json.string("Next Tuesday you wuii befriend a  baby otter"),
+      ),
+    ])
+    |> json.to_string()
   }
 
   // Create a running input list we will add over time
   let content_input_text = "What is my horoscope?  I am a Cancer"
-  let input =
-    InputList([
-      InputListItemMessage(RoleContent(
-        role: "user",
-        content: ContentInputText(content_input_text),
-      )),
-    ])
+  let hop1 = [
+    InputListItemMessage(RoleContent(
+      role: "user",
+      content: ContentInputText(content_input_text),
+    )),
+  ]
   io.println("\nPrompt: " <> content_input_text)
 
   let config =
     responses.default_request()
-    |> responses.model(shared.GPT41)
-    |> responses.input(input)
+    |> responses.model(shared.GPT51)
+    |> responses.input(InputList(hop1))
     |> responses.function_tool_choice(Auto)
     // Define the list of callable tools for the model
     |> responses.tools(Some([]), horoscope_tool)
 
   // 2. Prompt the model with tools defined
   let assert Ok(response) = responses.create(api_key, config)
-  echo response.output
+  // echo response.output
 
-  let InputList(input_) = input
-  let input =
-    list.fold(response.output, input_, fn(acc, item) {
-      echo acc
+  let hop2 =
+    list.fold(response.output, hop1, fn(acc, item) {
       case item {
-        response.OutputFunctionCall(_, _, call_id:, name:, arguments:) ->
-          case name == "get_horoscope" {
-            True -> {
-              echo arguments
-              let horoscope = get_horoscope(arguments)
-              echo horoscope
-              list.prepend(
-                acc,
-                InputListItemMessage(FunctionCallOutput(
-                  call_id:,
-                  output: json.string(horoscope),
-                )),
-              )
+        response.OutputReasoning(id:, summary:, content:) -> {
+          list.append(acc, [
+            InputListItemMessage(OutputReasoning(
+              id:,
+              summary: list.fold(summary, [], fn(acc, text_item) {
+                case text_item {
+                  response.OutputReasoningSummary(text:) ->
+                    list.prepend(acc, OutputReasoningSummary(text))
+                }
+              }),
+              content: list.fold(content, [], fn(acc, text_item) {
+                case text_item {
+                  response.OutputReasoningContent(text:) ->
+                    list.prepend(acc, OutputReasoningContent(text))
+                }
+              }),
+            )),
+          ])
+        }
+        response.OutputFunctionCall(status:, id:, call_id:, name:, arguments:) -> {
+          list.append(acc, [
+            InputListItemMessage(OutputFunctionCall(
+              status,
+              id,
+              call_id,
+              name,
+              arguments,
+            )),
+          ])
+          |> fn(acc_) {
+            case name {
+              "get_horoscope" -> {
+                let horoscope = get_horoscope(arguments)
+                list.append(acc_, [
+                  InputListItemMessage(FunctionCallOutput(
+                    call_id:,
+                    output: json.string(horoscope),
+                  )),
+                ])
+              }
+              _ -> panic as "unrecognized function call"
             }
-            False -> acc
           }
-
-        // response.OutputReasoning(id:, summary:, content:) ->
-        //       list.prepend(
-        //         acc,
-        //         InputListItemMessage(FunctionCallOutput(
-        //           call_id:,
-        //           output: json.string(horoscope),
-        //         )),
-        //       )
-        //     }
-        //     False -> acc
-        //   }
+        }
         _ -> acc
       }
     })
-    |> InputList()
 
-  echo "input"
-  echo input
   let config =
     responses.default_request()
-    |> responses.model(shared.GPT41)
+    |> responses.model(shared.GPT51)
     |> responses.instructions(Some(
       "Respond only with a horoscope generated by a tool.",
     ))
-    |> responses.input(input)
+    |> responses.input(InputList(hop2))
     // Define the list of callable tools for the model
     |> responses.tools(Some([]), horoscope_tool)
 
   let assert Ok(response) = responses.create(api_key, config)
   echo response.output
-
   Ok(response)
 }
