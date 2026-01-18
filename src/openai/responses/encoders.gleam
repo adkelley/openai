@@ -155,6 +155,65 @@ fn input_list_item_encoder(input_list_item: request.InputListItem) -> Json {
           ),
         ])
       }
+      request.ShellCallOutput(call_id:, max_output_length:, output:) -> {
+        json.object([
+          #("type", json.string("shell_call_output")),
+          #("call_id", json.string(call_id)),
+          #("max_output_length", json.int(max_output_length)),
+          #(
+            "output",
+            json.array(output, fn(x) {
+              let outcome_encoder = fn(outcome: request.ShellExectionOutcome) {
+                case outcome {
+                  request.ShellExecutionOutcome(type_:, exit_code:) -> {
+                    json.object([
+                      #("type", json.string(type_)),
+                      #("exit_code", json.int(exit_code)),
+                    ])
+                  }
+                }
+              }
+              case x {
+                request.ShellExectionOutput(stdout:, stderr:, outcome:) -> {
+                  json.object([
+                    #("stdout", json.string(stdout)),
+                    #("stderr", json.string(stderr)),
+                    #("outcome", outcome_encoder(outcome)),
+                  ])
+                }
+              }
+            }),
+          ),
+        ])
+      }
+      request.OutputShellCall(id:, call_id:, action:, status:, environment:) -> {
+        let action_encoder = fn() {
+          case action {
+            request.OutputShellCallAction(
+              commands:,
+              timeout_ms:,
+              max_output_length:,
+            ) -> {
+              json.object([
+                #("commands", json.array(commands, json.string)),
+                #("timeout_ms", json.int(timeout_ms)),
+                #("max_output_length", json.int(max_output_length)),
+              ])
+            }
+          }
+        }
+        json.object([
+          #("type", json.string("shell_call")),
+          #("id", json.string(id)),
+          #("call_id", json.string(call_id)),
+          #("action", action_encoder()),
+          #("status", json.string(status)),
+          #("environment", case environment {
+            Some(text) -> json.string(text)
+            None -> json.null()
+          }),
+        ])
+      }
     }
   }
 
@@ -281,6 +340,9 @@ fn tools_encoder(tools: List(request.Tools)) -> List(Json) {
         )
       request.FunctionCalling(name:, description:, parameters:, strict:) ->
         function_calling_encoder(name, description, parameters, strict)
+      request.ShellCall -> {
+        json.object([#("type", json.string("shell"))])
+      }
     }
   })
 }

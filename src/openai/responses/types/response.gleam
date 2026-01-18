@@ -168,6 +168,22 @@ pub type Output {
     /// Function specifec Json to parse within the caller app
     arguments: String,
   )
+  // type "shell_call"
+  OutputShellCall(
+    id: String,
+    call_id: String,
+    action: OutputShellCallAction,
+    status: String,
+    environment: Option(String),
+  )
+}
+
+pub type OutputShellCallAction {
+  OutputShellCallAction(
+    commands: List(String),
+    timeout_ms: Int,
+    max_output_length: Int,
+  )
 }
 
 pub type OutputMcpCallError {
@@ -306,8 +322,9 @@ pub type Format {
 }
 
 pub type Tool {
-  // TODO: Document these arguments
-  /// Defines a function in your own code the model can choose to call. Learn more about [function calling](https://platform.openai.com/docs/guides/function-calling).
+  /// Defines a function in your own code the model can choose to call. Learn
+  /// more about [function calling](https://platform.openai.com/docs/guides/
+  /// function-calling).
   Function(
     /// The function's name (e.g. get_weather)
     name: String,
@@ -318,7 +335,9 @@ pub type Tool {
     /// Whether to enforce strict mode for the function call
     strict: Bool,
   )
-  /// A tool that searches for relevant content from uploaded files. Learn more about the [file search tool](https://platform.openai.com/docs/guides/tools-file-search).
+  /// A tool that searches for relevant content from uploaded files. Learn more
+  /// about the [file search tool](https://platform.openai.com/docs/guides/
+  /// tools-file-search).
   FileSearch(
     /// The IDs of the vector stores to search.
     vector_store_ids: List(String),
@@ -354,6 +373,9 @@ pub type Tool {
     server_url: String,
     server_label: String,
   )
+  // TODO Document these args
+  // type: "shell"
+  Shell
 }
 
 pub type ToolMcpRequireApproval {

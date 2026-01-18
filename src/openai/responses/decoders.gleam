@@ -169,7 +169,13 @@ fn tool_decoder() -> Decoder(response.Tool) {
     computer_use_decoder(),
     web_search_decoder(),
     mcp_decoder(),
+    shell_decoder(),
   ])
+}
+
+fn shell_decoder() -> Decoder(response.Tool) {
+  use _type <- decode.field("type", decode.string)
+  decode.success(response.Shell)
 }
 
 fn function_decoder() -> Decoder(response.Tool) {
@@ -443,6 +449,33 @@ fn output_decoder() {
         arguments:,
       ))
     }
+    "shell_call" -> {
+      let action_decoder = fn() {
+        use commands <- decode.field("commands", decode.list(decode.string))
+        use timeout_ms <- decode.field("timeout_ms", decode.int)
+        use max_output_length <- decode.field("max_output_length", decode.int)
+        decode.success(response.OutputShellCallAction(
+          commands:,
+          timeout_ms:,
+          max_output_length:,
+        ))
+      }
+      use id <- decode.field("id", decode.string)
+      use call_id <- decode.field("call_id", decode.string)
+      use action <- decode.field("action", action_decoder())
+      use status <- decode.field("status", decode.string)
+      use environment <- decode.field(
+        "environment",
+        decode.optional(decode.string),
+      )
+      decode.success(response.OutputShellCall(
+        id:,
+        call_id:,
+        action:,
+        status:,
+        environment:,
+      ))
+    }
 
     _ -> {
       echo "output decoder case not found"
@@ -562,8 +595,3 @@ pub fn response_decoder() -> decode.Decoder(Response) {
     metadata:,
   ))
 }
-// "{\n  \"id\": \"resp_0b891a9e705bb91200693df1375f0481999dc23f0fb588d14d\",\n  \"object\": \"response\",\n  \"created_at\": 1765667127,\n  \"status\": \"completed\",\n  \"background\": false,\n  \"billing\": {\n    \"payer\": \"developer\"\n  },\n  \"error\": null,\n  \"incomplete_details\": null,\n  \"instructions\": null,\n  \"max_output_tokens\": null,\n  \"max_tool_calls\": null,\n  \"model\": \"gpt-5-2025-08-07\",\n  \"output\": [\n    {\n      \"id\": \"rs_0b891a9e705bb91200693df138c8288199b9b5ffeb4c27094b\",\n      \"type\": \"reasoning\",\n      \"summary\": []\n    },\n    {\n      \"id\": \"fc_0b891a9e705bb91200693df13d58dc8199b2a3fe0052e19e05\",\n      \"type\": \"function_call\",\n      \"status\": \"completed\",\n      \"arguments\": \"{\\\"sign\\\":\\\"Cancer\\\"}\",\n      \"call_id\": \"call_Tp0JRxPnynWzIpkwIV7ge3OB\",\n      \"name\": \"get_horoscope\"\n    }\n  ],\n  \"parallel_tool_calls\": true,\n  \"previous_response_id\": null,\n  \"prompt_cache_key\": null,\n  \"prompt_cache_retention\": null,\n  \"reasoning\": {\n    \"effort\": \"medium\",\n    \"summary\": null\n  },\n  \"safety_identifier\": null,\n  \"service_tier\": \"default\",\n  \"store\": true,\n  \"temperature\": 1.0,\n  \"text\": {\n    \"format\": {\n      \"type\": \"text\"\n    },\n    \"verbosity\": \"medium\"\n  },\n  \"tool_choice\": \"auto\",\n  \"tools\": [\n    {\n      \"type\": \"function\",\n      \"description\": \"Get today's horoscope for an astrological sign\",\n      \"name\": \"get_horoscope\",\n      \"parameters\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"sign\": {\n            \"type\": \"string\",\n            \"description\": \"An astrological sign like Taurus or Aquarius\"\n          }\n        },\n        \"required\": [\n          \"sign\"\n        ],\n        \"additionalProperties\": false\n      },\n      \"strict\": true\n    }\n  ],\n  \"top_logprobs\": 0,\n  \"top_p\": 1.0,\n  \"truncation\": \"disabled\",\n  \"usage\": {\n    \"input_tokens\": 67,\n    \"input_tokens_details\": {\n      \"cached_tokens\": 0\n    },\n    \"output_tokens\": 150,\n    \"output_tokens_details\": {\n      \"reasoning_tokens\": 128\n    },\n    \"total_tokens\": 217\n  },\n  \"user\": null,\n  \"metadata\": {}\n}"
-// src/openai/responses/decoders.gleam:434
-// "output decoder case not found"
-// src/openai/responses/decoders.gleam:435
-// "function_call"

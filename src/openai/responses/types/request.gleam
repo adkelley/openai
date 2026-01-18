@@ -66,6 +66,38 @@ pub type InputMessage {
     /// Reasoning text content.
     content: List(OutputReasoningContent),
   )
+  ShellCallOutput(
+    call_id: String,
+    max_output_length: Int,
+    output: List(ShellExectionOutput),
+  )
+  OutputShellCall(
+    id: String,
+    call_id: String,
+    action: OutputShellCallAction,
+    status: String,
+    environment: Option(String),
+  )
+}
+
+pub type OutputShellCallAction {
+  OutputShellCallAction(
+    commands: List(String),
+    timeout_ms: Int,
+    max_output_length: Int,
+  )
+}
+
+pub type ShellExectionOutput {
+  ShellExectionOutput(
+    stdout: String,
+    stderr: String,
+    outcome: ShellExectionOutcome,
+  )
+}
+
+pub type ShellExectionOutcome {
+  ShellExecutionOutcome(type_: String, exit_code: Int)
 }
 
 /// Reasoning text content.
@@ -167,6 +199,7 @@ pub type Tools {
     /// Whether to enforce strict mode for the function call
     strict: Bool,
   )
+  ShellCall
 }
 
 pub type McpToolApproval {
