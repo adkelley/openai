@@ -113,8 +113,5 @@ pub fn main() -> Result(res.Response, OpenaiError) {
   Ok(response)
 }
 
-// @external(erlang, "ffi", "ls")
-// fn ls() -> #(Atom, Int, Charlist)
-
 @external(erlang, "ffi", "pwd")
 fn pwd() -> #(Atom, Int, Charlist)
