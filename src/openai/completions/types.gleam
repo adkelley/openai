@@ -1,7 +1,7 @@
 // https://platform.openai.com/docs/api-reference/chat
 // 
 import gleam/option.{type Option}
-import openai/types as shared
+import openai/types/shared
 
 pub type Config {
   Config(name: shared.Model, temperature: Float, stream: Bool)

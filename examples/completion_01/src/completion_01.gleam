@@ -3,8 +3,8 @@ import envoy
 import gleam/io
 import gleam/list
 
-import openai/chat/completions
-import openai/shared/types.{System, User}
+import openai/completions
+import openai/types/shared.{System, User}
 
 /// Sends a prompt to the Chat Completions API and writes the reply to stdout.
 pub fn main() -> Nil {

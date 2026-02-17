@@ -1,3 +1,4 @@
+import gleam/dynamic/decode
 import gleam/json.{type Json}
 
 /// The role of a message
@@ -18,6 +19,17 @@ pub fn role_encoder(role: Role) -> Json {
     User -> "user"
   }
   |> json.string
+}
+
+pub fn role_decoder() {
+  use role_string <- decode.then(decode.string)
+  case role_string {
+    "assistant" -> decode.success(Assistant)
+    "user" -> decode.success(User)
+    "system" -> decode.success(System)
+    "tool" -> decode.success(Tool)
+    _ -> decode.success(OtherRole(role_string))
+  }
 }
 
 /// The model to use for generating a response.

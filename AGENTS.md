@@ -14,6 +14,7 @@ endpoints without hand-writing JSON plumbing.
 - Documentation lines for public functions and public types are prefixed with '/// '
 - Documentation lines for private functions and types are prefixed witn '//'
 - Todos are prefixed witn '// TODO '
+- If you reference a function in your documentation, use Gleam syntax, only
 
 
 ## Essential Commands

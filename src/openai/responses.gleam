@@ -10,7 +10,7 @@ import openai/responses/decoders
 import openai/responses/encoders
 import openai/responses/types/request.{type Request, Request}
 import openai/responses/types/response.{type Response}
-import openai/types as shared
+import openai/types/shared
 
 const responses_url = "https://api.openai.com/v1/responses"
 

@@ -3,7 +3,7 @@ import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import openai/responses/types/request.{type Request}
-import openai/types as shared
+import openai/types/shared
 
 pub fn config_encoder(config: Request) -> Json {
   json.object([

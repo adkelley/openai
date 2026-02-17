@@ -1,7 +1,7 @@
 import gleam/dict.{type Dict}
 import gleam/json.{type Json}
 import gleam/option.{type Option}
-import openai/types as shared
+import openai/types/shared
 
 pub type Request {
   Request(

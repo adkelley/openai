@@ -124,7 +124,7 @@ pub type Instructions {
 // This is the type key
 pub type Output {
   OutputMessage(
-    content: List(OutputContent),
+    content: List(OutputMessageContent),
     id: String,
     role: String,
     status: String,
@@ -210,8 +210,12 @@ pub type OutputMcpListTools {
   )
 }
 
-pub type OutputContent {
+pub type OutputMessageContent {
   OutputText(annotations: List(Annotation), text: String)
+}
+
+pub type OutputTextContent {
+  OutputTextContent(annotations: List(Annotation), text: String)
 }
 
 pub type Action {

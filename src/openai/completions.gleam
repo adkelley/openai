@@ -9,10 +9,10 @@ import gleam/option.{None}
 import gleam/result
 import gleam/string
 
-import openai/completions/decoders
-import openai/completions/types as completions
+// import openai/decoders/completions as decoders
 import openai/error
-import openai/types as shared
+import openai/types/completions
+import openai/types/shared
 
 const completions_url = "https://api.openai.com/v1/chat/completions"
 
@@ -74,7 +74,7 @@ pub fn create(
 
   use resp <- result.try(httpc.send(req) |> error.replace_error())
   use completion <- result.try(
-    json.parse(resp.body, decoders.chat_completion_decoder())
+    json.parse(resp.body, completions.chat_completion_decoder())
     |> result.replace_error(error.BadResponse),
   )
 
@@ -137,7 +137,7 @@ pub fn stream_create_handler(
       let res =
         list.map(chunk, fn(chunk) {
           use completion <- result.try(
-            json.parse(chunk, decoders.chat_completion_chunk_decoder())
+            json.parse(chunk, completions.completion_chunk_decoder())
             |> result.replace_error(error.BadResponse),
           )
           Ok(completion)
