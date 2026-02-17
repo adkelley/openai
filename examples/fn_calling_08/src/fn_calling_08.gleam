@@ -87,7 +87,7 @@ pub fn main() -> Result(Response, OpenaiError) {
 
   // TODO Should this merging of input and output go into
   // `responses.gleam`
-  // Importantly [hop1, reasoning, call1, call2, out1, out2]
+  // Importantly [hop1, reasoning, fn_call1, fn_call2, out1, out2]
 
   let hop2 =
     list.fold(response.output, hop1, fn(acc, item) {

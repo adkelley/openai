@@ -8,9 +8,9 @@ packages = [
   { name = "gleam_http", version = "4.3.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_http", source = "hex", outer_checksum = "82EA6A717C842456188C190AFB372665EA56CE13D8559BF3B1DD9E40F619EE0C" },
   { name = "gleam_httpc", version = "5.0.0", build_tools = ["gleam"], requirements = ["gleam_erlang", "gleam_http", "gleam_stdlib"], source = "git", repo = "https://github.com/adkelley/httpc", commit = "791a7acb9920d82c672ff346ef9c949ee2865d1b" },
   { name = "gleam_json", version = "3.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_json", source = "hex", outer_checksum = "44FDAA8847BE8FC48CA7A1C089706BD54BADCC4C45B237A992EDDF9F2CDB2836" },
-  { name = "gleam_stdlib", version = "0.68.1", build_tools = ["gleam"], requirements = [], otp_app = "gleam_stdlib", source = "hex", outer_checksum = "F7FAEBD8EF260664E86A46C8DBA23508D1D11BB3BCC6EE1B89B3BC3E5C83FF1E" },
+  { name = "gleam_stdlib", version = "0.69.0", build_tools = ["gleam"], requirements = [], otp_app = "gleam_stdlib", source = "hex", outer_checksum = "AAB0962BEBFAA67A2FBEE9EEE218B057756808DC9AF77430F5182C6115B3A315" },
   { name = "gleeunit", version = "1.9.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleeunit", source = "hex", outer_checksum = "DA9553CE58B67924B3C631F96FE3370C49EB6D6DC6B384EC4862CC4AAA718F3C" },
-  { name = "openai", version = "0.2.0", build_tools = ["gleam"], requirements = ["envoy", "gleam_erlang", "gleam_http", "gleam_httpc", "gleam_json", "gleam_stdlib", "simplifile"], source = "git", repo = "https://github.com/adkelley/openai", commit = "de3f754e3951ca19348b6d17af8f547ee6de5673" },
+  { name = "openai", version = "0.2.0", build_tools = ["gleam"], requirements = ["envoy", "gleam_erlang", "gleam_http", "gleam_httpc", "gleam_json", "gleam_stdlib", "simplifile"], source = "local", path = "../.." },
   { name = "simplifile", version = "2.3.2", build_tools = ["gleam"], requirements = ["filepath", "gleam_stdlib"], otp_app = "simplifile", source = "hex", outer_checksum = "E049B4DACD4D206D87843BCF4C775A50AE0F50A52031A2FFB40C9ED07D6EC70A" },
 ]
 
@@ -18,4 +18,4 @@ packages = [
 envoy = { version = ">= 1.0.2 and < 2.0.0" }
 gleam_stdlib = { version = ">= 0.44.0 and < 2.0.0" }
 gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
-openai = { git = "https://github.com/adkelley/openai", ref = "main" }
+openai = { path = "../.." }

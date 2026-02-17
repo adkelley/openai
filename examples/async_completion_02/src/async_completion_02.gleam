@@ -3,10 +3,10 @@ import envoy
 import gleam/io
 import gleam/list
 
-import openai/completions
-import openai/completions/types
+import openai/completions as c
 import openai/error
-import openai/types as shared
+import openai/types/completions.{Config}
+import openai/types/shared.{System, User}
 
 /// Sets up a streaming chat completion request and consumes the events.
 pub fn main() -> Result(Nil, error.OpenaiError) {
@@ -15,14 +15,14 @@ pub fn main() -> Result(Nil, error.OpenaiError) {
   let prompt = "Why is the sky blue?"
   io.println("Prompt: " <> prompt)
 
-  let config = completions.default_config()
+  let config = c.default_config()
   let messages =
-    completions.add_message([], shared.System, "You are a helpful assistant")
-    |> completions.add_message(shared.User, prompt)
+    c.add_message([], System, "You are a helpful assistant")
+    |> c.add_message(User, prompt)
 
-  let config = types.Config(..config, stream: True)
+  let config = Config(..config, stream: True)
   io.println("\nStreaming: ")
-  let result = completions.stream_create(api_key, config, messages)
+  let result = c.stream_create(api_key, config, messages)
   case result {
     Ok(stream_handler) -> loop(stream_handler)
     Error(e) -> Error(e) |> echo
@@ -30,9 +30,9 @@ pub fn main() -> Result(Nil, error.OpenaiError) {
 }
 
 // Recursively pulls chunks from the active stream handler until completion.
-fn loop(handler: completions.StreamHandler) -> Result(Nil, error.OpenaiError) {
-  case completions.stream_create_handler(handler) {
-    Ok(completions.StreamChunk(completion_chunks)) -> {
+fn loop(handler: c.StreamHandler) -> Result(Nil, error.OpenaiError) {
+  case c.stream_create_handler(handler) {
+    Ok(c.StreamChunk(completion_chunks)) -> {
       list.map(completion_chunks, fn(completion) {
         list.map(completion.choices, fn(choice) {
           io.print(choice.delta.content)
@@ -40,8 +40,8 @@ fn loop(handler: completions.StreamHandler) -> Result(Nil, error.OpenaiError) {
       })
       loop(handler)
     }
-    Ok(completions.StreamStart(handler_)) -> loop(handler_)
-    Ok(completions.StreamEnd) -> {
+    Ok(c.StreamStart(handler_)) -> loop(handler_)
+    Ok(c.StreamEnd) -> {
       io.println("")
       Ok(Nil)
     }
