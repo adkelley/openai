@@ -6,18 +6,20 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import openai/error
-import openai/responses/decoders
-import openai/responses/encoders
-import openai/responses/types/request.{type Request, Request}
-import openai/responses/types/response.{type Response}
+import openai/types/responses/create_response.{
+  type CreateResponse, CreateResponse,
+} as cr
+
+// import openai/types/responses/decoders
+import openai/types/responses/response.{type Response}
 import openai/types/shared
 
 const responses_url = "https://api.openai.com/v1/responses"
 
-pub fn default_request() -> Request {
-  Request(
+pub fn default_request() -> CreateResponse {
+  CreateResponse(
     model: shared.GPT41Mini,
-    input: request.InputText(""),
+    input: cr.InputText(""),
     instructions: None,
     temperature: None,
     stream: None,
@@ -26,45 +28,48 @@ pub fn default_request() -> Request {
   )
 }
 
-pub fn model(config: Request, model: shared.Model) {
-  Request(..config, model:)
+pub fn model(config: CreateResponse, model: shared.Model) {
+  CreateResponse(..config, model:)
 }
 
-pub fn input(config: Request, input: request.Input) -> Request {
-  Request(..config, input:)
+pub fn input(config: CreateResponse, input: cr.Input) -> CreateResponse {
+  CreateResponse(..config, input:)
 }
 
-pub fn instructions(config: Request, instructions: Option(String)) -> Request {
-  Request(..config, instructions:)
+pub fn instructions(
+  config: CreateResponse,
+  instructions: Option(String),
+) -> CreateResponse {
+  CreateResponse(..config, instructions:)
 }
 
 pub fn function_tool_choice(
-  config: Request,
-  tool_choice: request.FunctionToolChoice,
+  config: CreateResponse,
+  tool_choice: cr.FunctionToolChoice,
 ) {
-  Request(..config, tool_choice: Some(tool_choice))
+  CreateResponse(..config, tool_choice: Some(tool_choice))
 }
 
 pub fn tools(
-  config: Request,
-  tools: Option(List(request.Tools)),
-  tool: request.Tools,
+  config: CreateResponse,
+  tools: Option(List(cr.Tools)),
+  tool: cr.Tools,
 ) {
   case tools {
-    None -> Request(..config, tools: Some([tool]))
-    Some(ts) -> Request(..config, tools: Some(list.prepend(ts, tool)))
+    None -> CreateResponse(..config, tools: Some([tool]))
+    Some(ts) -> CreateResponse(..config, tools: Some(list.prepend(ts, tool)))
   }
 }
 
 pub fn create(
   client client: String,
-  request config: Request,
+  request config: CreateResponse,
 ) -> Result(Response, error.OpenaiError) {
   // I think this assert is Ok
   let assert Ok(base_req) = http_request.to(responses_url)
 
   let body =
-    encoders.config_encoder(config)
+    cr.create_response_encoder(config)
     |> json.to_string
   // |> echo
 
@@ -83,7 +88,7 @@ pub fn create(
   )
   // echo resp.body
   use result <- result.try(
-    json.parse(resp.body, decoders.response_decoder())
+    json.parse(resp.body, response.response_decoder())
     // |> echo
     |> result.replace_error(error.BadResponse),
   )
