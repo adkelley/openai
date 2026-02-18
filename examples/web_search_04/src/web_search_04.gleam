@@ -5,9 +5,9 @@ import gleam/option.{None, Some}
 
 import openai/error.{type OpenaiError}
 import openai/responses
-import openai/responses/types/request.{Auto, SCSLow, WebSearch, WebSearchFilters}
-import openai/responses/types/response.{type Response}
-import openai/types as shared
+import openai/types/responses/create_response as cr
+import openai/types/responses/response.{type Response}
+import openai/types/shared
 
 /// Builds a web-search-enabled response request and prints the returned payload.
 pub fn main() -> Result(Response, OpenaiError) {
@@ -17,12 +17,12 @@ pub fn main() -> Result(Response, OpenaiError) {
   io.println("\nPrompt: " <> prompt)
 
   let tool =
-    WebSearch(
+    cr.WebSearch(
       filters: Some(
-        WebSearchFilters(allowed_domains: Some(["www.wikipedia.org"])),
+        cr.WebSearchFilters(allowed_domains: Some(["www.wikipedia.org"])),
       ),
-      search_context_size: Some(SCSLow),
-      user_location: Some(request.UserLocation(
+      search_context_size: Some(cr.SCSLow),
+      user_location: Some(cr.UserLocation(
         city: None,
         country: Some("US"),
         region: None,
@@ -33,9 +33,9 @@ pub fn main() -> Result(Response, OpenaiError) {
 
   let config =
     responses.default_request()
-    |> responses.model(shared.GPT41)
-    |> responses.input(prompt)
-    |> responses.tool_choice(Auto)
+    |> responses.model(shared.GPT51)
+    |> responses.input(cr.InputText(prompt))
+    |> responses.function_tool_choice(cr.Auto)
     |> responses.tools(None, tool)
 
   // TODO Should it be the users responsibility to tease out the content from the
