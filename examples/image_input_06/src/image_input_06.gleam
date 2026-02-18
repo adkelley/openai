@@ -4,33 +4,34 @@ import gleam/io
 import gleam/option.{None, Some}
 import openai/error.{type OpenaiError}
 import openai/responses
-import openai/responses/types/request
-import openai/responses/types/response.{type Response}
-import openai/types as shared
+import openai/types/responses/create_response as cr
+import openai/types/responses/response.{type Response}
+import openai/types/shared
 
 /// Builds an image-aware Responses request and prints the returned payload.
 pub fn main() -> Result(Response, OpenaiError) {
   let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
 
   let image_url =
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"
+    "https://cdn.pixabay.com/photo/2015/11/07/11/22/mountains-1031075_960_720.jpg"
+
   let prompt = "What is in this image?"
   io.println("\nPrompt: " <> prompt)
   io.println("Image Url: " <> image_url)
 
   let input_list_item =
-    request.InputListItemMessage(request.InputMessage(
+    cr.InputListItemMessage(cr.RoleContent(
       role: "user",
-      content: request.ContentInputList([
-        request.ContentItemText(text: "What is in this image?"),
-        request.ContentItemImage(
+      content: cr.ContentInputList([
+        cr.ContentItemText(text: "What is in this image?"),
+        cr.ContentItemImage(
           detail: "auto",
           file_id: None,
           image_url: Some(image_url),
         ),
       ]),
     ))
-  let input = request.InputList([input_list_item])
+  let input = cr.InputList([input_list_item])
   let instructions = "You are a coding assistant that talks like a pirate"
 
   let config =

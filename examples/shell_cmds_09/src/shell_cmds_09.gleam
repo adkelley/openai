@@ -7,20 +7,20 @@ import gleam/option.{Some}
 import gleam/string
 import openai/error.{type OpenaiError}
 import openai/responses
-import openai/responses/types/request as req
-import openai/responses/types/response as res
-import openai/types as shared
+import openai/types/responses/create_response as cr
+import openai/types/responses/response.{type Response} as res
+import openai/types/shared
 
-pub fn main() -> Result(res.Response, OpenaiError) {
+pub fn main() -> Result(Response, OpenaiError) {
   let assert Ok(api_key) = envoy.get("OPENAI_API_KEY")
 
   // let input_text = "list the contents of the current directory"
   let input_text = "print the current working directory"
   // let input_text = "find me the largest markdown file in current directory"
   let hop1 = [
-    req.InputListItemMessage(req.RoleContent(
+    cr.InputListItemMessage(cr.RoleContent(
       role: "user",
-      content: req.ContentInputText(input_text),
+      content: cr.ContentInputText(input_text),
     )),
   ]
   io.println("\nPrompt: " <> input_text)
@@ -28,10 +28,10 @@ pub fn main() -> Result(res.Response, OpenaiError) {
   let config =
     responses.default_request()
     |> responses.model(shared.GPT51)
-    |> responses.input(req.InputList(hop1))
+    |> responses.input(cr.InputList(hop1))
     |> responses.instructions(Some("The local bash environment is on Mac"))
     // Define the list of callable tools for the model
-    |> responses.tools(Some([]), req.ShellCall)
+    |> responses.tools(Some([]), cr.ShellCall)
 
   let assert Ok(response) = responses.create(api_key, config)
   echo response.output
@@ -50,7 +50,7 @@ pub fn main() -> Result(res.Response, OpenaiError) {
               timeout_ms:,
               max_output_length:,
             ) -> {
-              req.OutputShellCallAction(
+              cr.OutputShellCallAction(
                 commands:,
                 timeout_ms:,
                 max_output_length:,
@@ -58,7 +58,7 @@ pub fn main() -> Result(res.Response, OpenaiError) {
             }
           }
           list.append(acc, [
-            req.InputListItemMessage(req.OutputShellCall(
+            cr.InputListItemMessage(cr.OutputShellCall(
               id:,
               call_id:,
               action: req_action,
@@ -78,23 +78,23 @@ pub fn main() -> Result(res.Response, OpenaiError) {
                   charlist.to_string(xs) |> string.trim_end()
                 }
                 let output_list = [
-                  req.ShellExectionOutput(
+                  cr.ShellExectionOutput(
                     stdout: pwd_(),
                     stderr: "",
-                    outcome: req.ShellExecutionOutcome(
+                    outcome: cr.ShellExecutionOutcome(
                       type_: "exit",
                       exit_code: 0,
                     ),
                   ),
                 ]
-                req.ShellCallOutput(
+                cr.ShellCallOutput(
                   call_id:,
                   max_output_length:,
                   output: output_list,
                 )
               }
             }
-            list.append(acc_, [req.InputListItemMessage(shell_call_output)])
+            list.append(acc_, [cr.InputListItemMessage(shell_call_output)])
           }
         }
 
@@ -105,7 +105,7 @@ pub fn main() -> Result(res.Response, OpenaiError) {
   let config =
     responses.default_request()
     |> responses.model(shared.GPT51)
-    |> responses.input(req.InputList(hop2))
+    |> responses.input(cr.InputList(hop2))
 
   let assert Ok(response) = responses.create(api_key, config)
   echo response.output

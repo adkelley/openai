@@ -8,13 +8,13 @@ import gleam/option.{Some}
 
 import openai/error.{type OpenaiError}
 import openai/responses
-import openai/responses/types/request.{
+import openai/types/responses/create_response.{
   Auto, ContentInputText, FunctionCallOutput, FunctionCalling, InputList,
   InputListItemMessage, OutputFunctionCall, OutputReasoning,
   OutputReasoningContent, OutputReasoningSummary, RoleContent,
 }
-import openai/responses/types/response.{type Response}
-import openai/types as shared
+import openai/types/responses/response.{type Response}
+import openai/types/shared
 
 /// Requires `OPENAI_API_KEY` to be set in the environment.
 pub fn main() -> Result(Response, OpenaiError) {

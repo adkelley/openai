@@ -5,11 +5,9 @@ import gleam/option.{None, Some}
 
 import openai/error.{type OpenaiError}
 import openai/responses
-import openai/responses/types/request.{
-  Auto, InputText, Mcp, McpToolApprovalFilter, McpToolFilter,
-}
-import openai/responses/types/response.{type Response}
-import openai/types as shared
+import openai/types/responses/create_response as cr
+import openai/types/responses/response.{type Response}
+import openai/types/shared
 
 /// Builds a GPT-5 Responses request, routes tool calls through the `deepwiki`
 /// MCP connector, and prints the returned payload so it can be inspected.
@@ -22,15 +20,15 @@ pub fn main() -> Result(Response, OpenaiError) {
   io.println("\nPrompt: " <> input)
 
   let tool =
-    Mcp(
+    cr.Mcp(
       server_label: "deepwiki",
       allowed_tools: None,
       authorization: None,
       connector_id: None,
       headers: None,
-      require_approval: Some(McpToolApprovalFilter(
+      require_approval: Some(cr.McpToolApprovalFilter(
         always: None,
-        never: Some(McpToolFilter(
+        never: Some(cr.McpToolFilter(
           read_only: None,
           tool_names: Some(["ask_question", "read_wiki_structure"]),
         )),
@@ -42,8 +40,8 @@ pub fn main() -> Result(Response, OpenaiError) {
   let config =
     responses.default_request()
     |> responses.model(shared.GPT5)
-    |> responses.input(InputText(input))
-    |> responses.tool_choice(Auto)
+    |> responses.input(cr.InputText(input))
+    |> responses.function_tool_choice(cr.Auto)
     |> responses.tools(None, tool)
 
   // TODO Should it be the users responsibility to tease out the content from the
