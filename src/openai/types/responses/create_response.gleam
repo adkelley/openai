@@ -19,15 +19,7 @@ pub type CreateResponse {
 pub fn create_response_encoder(config: CreateResponse) -> Json {
   json.object([
     #("model", shared.model_encoder(config.model)),
-    case config.input {
-      InputText(text) -> #("input", json.string(text))
-      InputList(input_list) -> #(
-        "input",
-        json.array(input_list, fn(input_list_item) {
-          input_list_item_encoder(input_list_item)
-        }),
-      )
-    },
+    input_encoder(config.input),
     case config.instructions {
       None -> #("instructions", json.null())
       Some(instructions) -> #("instructions", json.string(instructions))
@@ -57,13 +49,25 @@ pub fn create_response_encoder(config: CreateResponse) -> Json {
 /// Text, image, or file inputs to the model, used to generate a response.
 pub type Input {
   /// A text input to the model, equivalent to a text input with the user role.
-  InputText(String)
+  Input(String)
   /// A list of one or many input items to the model, containing different content types.
-  InputList(List(InputListItem))
+  ResponseInput(List(ResponseInputItem))
+}
+
+fn input_encoder(input: Input) {
+  case input {
+    Input(input) -> #("input", json.string(input))
+    ResponseInput(response_input) -> #(
+      "input",
+      json.array(response_input, fn(response_input_item) {
+        response_input_item_encoder(response_input_item)
+      }),
+    )
+  }
 }
 
 /// A list of one or many input items to the model, containing different content types.
-pub type InputListItem {
+pub type ResponseInputItem {
   /// A message input to the model with a role indicating instruction following
   /// hierarchy. Instructions given with the developer or system role take
   /// precedence over instructions given with the user role. Messages with the
@@ -74,174 +78,8 @@ pub type InputListItem {
   //Item(InputItem)
 }
 
-fn input_list_item_encoder(input_list_item: InputListItem) -> Json {
-  let input_message_encoder = fn(input_message: InputMessage) -> Json {
-    let content_item_image_encoder = fn(
-      detail: String,
-      file_id: Option(String),
-      image_url: Option(String),
-    ) -> Json {
-      json.object([
-        #("type", json.string("input_image")),
-        #("detail", json.string(detail)),
-        case file_id {
-          None -> {
-            let assert Some(image_url) = image_url
-            #("image_url", json.string(image_url))
-          }
-          Some(file_id) -> #("file_id", json.string(file_id))
-        },
-      ])
-    }
-
-    let content_item_text_encoder = fn(text: String) -> Json {
-      json.object([
-        #("type", json.string("input_text")),
-        #("text", json.string(text)),
-      ])
-    }
-
-    let content_item_file_encoder = fn(
-      file_data: Option(String),
-      file_id: Option(String),
-      file_url: Option(String),
-      filename: Option(String),
-    ) -> Json {
-      json.object([
-        #("type", json.string("input_file")),
-        #("file_data", json.nullable(file_data, json.string)),
-        #("file_id", json.nullable(file_id, json.string)),
-        #("file_url", json.nullable(file_url, json.string)),
-        #("filename", json.nullable(filename, json.string)),
-      ])
-    }
-
-    case input_message {
-      RoleContent(role:, content:) -> {
-        let process_content = fn() -> Json {
-          case content {
-            ContentInputList(xs) -> {
-              json.array(xs, fn(x) {
-                case x {
-                  ContentItemFile(file_data:, file_id:, file_url:, filename:) ->
-                    content_item_file_encoder(
-                      file_data,
-                      file_id,
-                      file_url,
-                      filename,
-                    )
-                  ContentItemImage(detail:, file_id:, image_url:) ->
-                    content_item_image_encoder(detail, file_id, image_url)
-                  ContentItemText(text:) -> content_item_text_encoder(text)
-                }
-              })
-            }
-            ContentInputText(text) -> json.string(text)
-          }
-        }
-        json.object([
-          #("role", json.string(role)),
-          #("content", process_content()),
-        ])
-      }
-      FunctionCallOutput(call_id:, output:) -> {
-        json.object([
-          #("type", json.string("function_call_output")),
-          #("call_id", json.string(call_id)),
-          #("output", output),
-        ])
-      }
-      OutputFunctionCall(status:, id:, call_id:, name:, arguments:) -> {
-        json.object([
-          #("type", json.string("function_call")),
-          #("status", json.string(status)),
-          #("id", json.string(id)),
-          #("call_id", json.string(call_id)),
-          #("name", json.string(name)),
-          #("arguments", json.string(arguments)),
-        ])
-      }
-      OutputReasoning(id:, summary:, content:) -> {
-        json.object([
-          #("type", json.string("reasoning")),
-          #("id", json.string(id)),
-          #(
-            "summary",
-            json.array(summary, fn(x) {
-              case x {
-                OutputReasoningSummary(text:) -> json.string(text)
-              }
-            }),
-          ),
-          #(
-            "content",
-            json.array(content, fn(x) {
-              case x {
-                OutputReasoningContent(text:) -> json.string(text)
-              }
-            }),
-          ),
-        ])
-      }
-      ShellCallOutput(call_id:, max_output_length:, output:) -> {
-        json.object([
-          #("type", json.string("shell_call_output")),
-          #("call_id", json.string(call_id)),
-          #("max_output_length", json.int(max_output_length)),
-          #(
-            "output",
-            json.array(output, fn(x) {
-              let outcome_encoder = fn(outcome: ShellExectionOutcome) {
-                case outcome {
-                  ShellExecutionOutcome(type_:, exit_code:) -> {
-                    json.object([
-                      #("type", json.string(type_)),
-                      #("exit_code", json.int(exit_code)),
-                    ])
-                  }
-                }
-              }
-              case x {
-                ShellExectionOutput(stdout:, stderr:, outcome:) -> {
-                  json.object([
-                    #("stdout", json.string(stdout)),
-                    #("stderr", json.string(stderr)),
-                    #("outcome", outcome_encoder(outcome)),
-                  ])
-                }
-              }
-            }),
-          ),
-        ])
-      }
-      OutputShellCall(id:, call_id:, action:, status:, environment:) -> {
-        let action_encoder = fn() {
-          case action {
-            OutputShellCallAction(commands:, timeout_ms:, max_output_length:) -> {
-              json.object([
-                #("commands", json.array(commands, json.string)),
-                #("timeout_ms", json.int(timeout_ms)),
-                #("max_output_length", json.int(max_output_length)),
-              ])
-            }
-          }
-        }
-        json.object([
-          #("type", json.string("shell_call")),
-          #("id", json.string(id)),
-          #("call_id", json.string(call_id)),
-          #("action", action_encoder()),
-          #("status", json.string(status)),
-          #("environment", case environment {
-            Some(text) -> json.string(text)
-            None -> json.null()
-          }),
-        ])
-      }
-    }
-  }
-
-  case input_list_item {
+fn response_input_item_encoder(response_input_item: ResponseInputItem) {
+  case response_input_item {
     InputListItemMessage(item_message) -> input_message_encoder(item_message)
     InputListItemReference(id:) ->
       json.object([
@@ -261,7 +99,7 @@ pub type InputMessage {
     role: String,
     /// Text, image, or audio input to the model, used to generate a response. i
     /// Can also contain previous assistant responses.
-    content: ContentInput,
+    content: Content,
     // status: Option(InputMessageStatus)
   )
   FunctionCallOutput(call_id: String, output: Json)
@@ -296,6 +134,142 @@ pub type InputMessage {
   )
 }
 
+fn input_message_encoder(input_message: InputMessage) -> Json {
+  case input_message {
+    RoleContent(role:, content:) -> role_content_encoder(role, content)
+    FunctionCallOutput(call_id:, output:) ->
+      function_call_output_encoder(call_id, output)
+    OutputFunctionCall(status:, id:, call_id:, name:, arguments:) ->
+      output_function_call_encoder(status, id, call_id, name, arguments)
+    OutputReasoning(id:, summary:, content:) ->
+      output_reasoning_encoder(id, summary, content)
+    ShellCallOutput(call_id:, max_output_length:, output:) ->
+      shell_call_output_encoder(call_id, max_output_length, output)
+    OutputShellCall(id:, call_id:, action:, status:, environment:) ->
+      output_shell_call_encoder(id, call_id, action, status, environment)
+  }
+}
+
+fn role_content_encoder(role: String, content: Content) {
+  json.object([
+    #("role", json.string(role)),
+    #("content", content_encoder(content)),
+  ])
+}
+
+fn function_call_output_encoder(call_id, output) {
+  json.object([
+    #("type", json.string("function_call_output")),
+    #("call_id", json.string(call_id)),
+    #("output", output),
+  ])
+}
+
+fn output_function_call_encoder(
+  status: String,
+  id: String,
+  call_id: String,
+  name: String,
+  arguments: String,
+) {
+  json.object([
+    #("type", json.string("function_call")),
+    #("status", json.string(status)),
+    #("id", json.string(id)),
+    #("call_id", json.string(call_id)),
+    #("name", json.string(name)),
+    #("arguments", json.string(arguments)),
+  ])
+}
+
+fn output_reasoning_encoder(
+  id: String,
+  summary: List(OutputReasoningSummary),
+  content: List(OutputReasoningContent),
+) {
+  json.object([
+    #("type", json.string("reasoning")),
+    #("id", json.string(id)),
+    #(
+      "summary",
+      json.array(summary, fn(x) {
+        case x {
+          OutputReasoningSummary(text:) -> json.string(text)
+        }
+      }),
+    ),
+    #(
+      "content",
+      json.array(content, fn(x) {
+        case x {
+          OutputReasoningContent(text:) -> json.string(text)
+        }
+      }),
+    ),
+  ])
+}
+
+fn shell_call_output_encoder(
+  call_id: String,
+  max_output_length: Int,
+  output: List(ShellExectionOutput),
+) {
+  json.object([
+    #("type", json.string("shell_call_output")),
+    #("call_id", json.string(call_id)),
+    #("max_output_length", json.int(max_output_length)),
+    #(
+      "output",
+      json.array(output, fn(x) {
+        let outcome_encoder = fn(outcome: ShellExectionOutcome) {
+          case outcome {
+            ShellExecutionOutcome(type_:, exit_code:) -> {
+              json.object([
+                #("type", json.string(type_)),
+                #("exit_code", json.int(exit_code)),
+              ])
+            }
+          }
+        }
+        case x {
+          ShellExectionOutput(stdout:, stderr:, outcome:) -> {
+            json.object([
+              #("stdout", json.string(stdout)),
+              #("stderr", json.string(stderr)),
+              #("outcome", outcome_encoder(outcome)),
+            ])
+          }
+        }
+      }),
+    ),
+  ])
+}
+
+fn output_shell_call_encoder(id, call_id, action, status, environment) {
+  let action_encoder = fn() {
+    case action {
+      OutputShellCallAction(commands:, timeout_ms:, max_output_length:) -> {
+        json.object([
+          #("commands", json.array(commands, json.string)),
+          #("timeout_ms", json.int(timeout_ms)),
+          #("max_output_length", json.int(max_output_length)),
+        ])
+      }
+    }
+  }
+  json.object([
+    #("type", json.string("shell_call")),
+    #("id", json.string(id)),
+    #("call_id", json.string(call_id)),
+    #("action", action_encoder()),
+    #("status", json.string(status)),
+    #("environment", case environment {
+      Some(text) -> json.string(text)
+      None -> json.null()
+    }),
+  ])
+}
+
 pub type OutputShellCallAction {
   OutputShellCallAction(
     commands: List(String),
@@ -326,11 +300,21 @@ pub type OutputReasoningContent {
   OutputReasoningContent(text: String)
 }
 
-pub type ContentInput {
+pub type Content {
+  // pub type ContentInput {
   /// A text input to the model.
-  ContentInputText(String)
+  ContentText(String)
   /// A list of one or many input items to the model, containing different content types.
-  ContentInputList(List(ContentItem))
+  ContentList(List(ContentItem))
+}
+
+fn content_encoder(content: Content) {
+  case content {
+    ContentList(xs) -> {
+      json.array(xs, fn(x) { content_item_encoder(x) })
+    }
+    ContentText(text) -> json.string(text)
+  }
 }
 
 /// A list of one or many input items to the model, containing different content types.
@@ -359,6 +343,39 @@ pub type ContentItem {
     /// The name of the file to be sent to the model.
     filename: Option(String),
   )
+}
+
+fn content_item_encoder(content_item: ContentItem) {
+  case content_item {
+    ContentItemText(text:) -> {
+      json.object([
+        #("type", json.string("input_text")),
+        #("text", json.string(text)),
+      ])
+    }
+    ContentItemImage(detail:, file_id:, image_url:) -> {
+      json.object([
+        #("type", json.string("input_image")),
+        #("detail", json.string(detail)),
+        case file_id {
+          None -> {
+            let assert Some(image_url) = image_url
+            #("image_url", json.string(image_url))
+          }
+          Some(file_id) -> #("file_id", json.string(file_id))
+        },
+      ])
+    }
+    ContentItemFile(file_data:, file_id:, file_url:, filename:) -> {
+      json.object([
+        #("type", json.string("input_file")),
+        #("file_data", json.nullable(file_data, json.string)),
+        #("file_id", json.nullable(file_id, json.string)),
+        #("file_url", json.nullable(file_url, json.string)),
+        #("filename", json.nullable(filename, json.string)),
+      ])
+    }
+  }
 }
 
 /// The status of item. One of in_progress, completed, or incomplete. Populated when items are
@@ -557,54 +574,6 @@ fn mcp_encoder(
   server_description: Option(String),
   server_url: Option(String),
 ) {
-  let allowed_tools_encoder = fn(allowed_tools: Option(McpAllowedTools)) {
-    #(
-      "allowed_tools",
-      json.nullable(allowed_tools, fn(a) {
-        case a {
-          McpAllowedTools(tools) -> json.array(tools, json.string)
-          McpAllowedToolsFilter(filter) -> {
-            json.object([
-              #("read_only", json.nullable(filter.read_only, json.bool)),
-              #(
-                "tool_names",
-                json.nullable(filter.tool_names, fn(tool) {
-                  json.array(tool, json.string)
-                }),
-              ),
-            ])
-          }
-        }
-      }),
-    )
-  }
-  let mcp_tool_filter_encoder = fn(tool_filter: McpToolFilter) {
-    json.object([
-      #("read_only", json.nullable(tool_filter.read_only, json.bool)),
-      #(
-        "tool_names",
-        json.nullable(tool_filter.tool_names, fn(tool_names) {
-          json.array(tool_names, json.string)
-        }),
-      ),
-    ])
-  }
-  let require_approval_encoder = fn(require_approval: Option(McpToolApproval)) {
-    #(
-      "require_approval",
-      json.nullable(require_approval, fn(tool_approval) {
-        case tool_approval {
-          McpToolApprovalFilter(always:, never:) -> {
-            json.object([
-              #("always", json.nullable(always, mcp_tool_filter_encoder)),
-              #("never", json.nullable(never, mcp_tool_filter_encoder)),
-            ])
-          }
-          McpToolApprovalSetting(setting) -> json.string(setting)
-        }
-      }),
-    )
-  }
   let headers_encoder = fn(headers: Option(Dict(String, String))) {
     #(
       "headers",
@@ -617,11 +586,11 @@ fn mcp_encoder(
   json.object([
     #("type", json.string("mcp")),
     #("server_label", json.string(server_label)),
-    allowed_tools_encoder(allowed_tools),
+    mcp_allowed_tools_encoder(allowed_tools),
     #("authorization", json.nullable(authorization, json.string)),
     #("connector_id", json.nullable(connector_id, json.string)),
     headers_encoder(headers),
-    require_approval_encoder(require_approval),
+    mcp_tool_approval_encoder(require_approval),
     #("server_description", json.nullable(server_description, json.string)),
     #("server_url", json.nullable(server_url, json.string)),
   ])
@@ -641,11 +610,50 @@ pub type McpToolApproval {
   McpToolApprovalSetting(String)
 }
 
+fn mcp_tool_approval_encoder(require_approval: Option(McpToolApproval)) {
+  #(
+    "require_approval",
+    json.nullable(require_approval, fn(tool_approval) {
+      case tool_approval {
+        McpToolApprovalFilter(always:, never:) -> {
+          json.object([
+            #("always", json.nullable(always, mcp_tool_filter_encoder)),
+            #("never", json.nullable(never, mcp_tool_filter_encoder)),
+          ])
+        }
+        McpToolApprovalSetting(setting) -> json.string(setting)
+      }
+    }),
+  )
+}
+
 pub type McpAllowedTools {
   /// A string array of allowed tools
   McpAllowedTools(List(String))
   /// A filter object to specify which tools are allowed.
   McpAllowedToolsFilter(McpToolFilter)
+}
+
+fn mcp_allowed_tools_encoder(allowed_tools: Option(McpAllowedTools)) {
+  #(
+    "allowed_tools",
+    json.nullable(allowed_tools, fn(a) {
+      case a {
+        McpAllowedTools(tools) -> json.array(tools, json.string)
+        McpAllowedToolsFilter(filter) -> {
+          json.object([
+            #("read_only", json.nullable(filter.read_only, json.bool)),
+            #(
+              "tool_names",
+              json.nullable(filter.tool_names, fn(tool) {
+                json.array(tool, json.string)
+              }),
+            ),
+          ])
+        }
+      }
+    }),
+  )
 }
 
 pub type McpToolFilter {
@@ -656,6 +664,18 @@ pub type McpToolFilter {
     /// List of allowed tool names.
     tool_names: Option(List(String)),
   )
+}
+
+fn mcp_tool_filter_encoder(tool_filter: McpToolFilter) {
+  json.object([
+    #("read_only", json.nullable(tool_filter.read_only, json.bool)),
+    #(
+      "tool_names",
+      json.nullable(tool_filter.tool_names, fn(tool_names) {
+        json.array(tool_names, json.string)
+      }),
+    ),
+  ])
 }
 
 pub type WebSearchFilters {
@@ -704,9 +724,7 @@ fn function_tool_choice_encoder(tool_choice: FunctionToolChoice) -> Json {
     Nothing -> json.null()
     Auto -> json.string("auto")
     Required -> json.string("required")
-    AllowedTools(_allowed_tools) -> {
-      todo
-    }
+    AllowedTools(allowed_tools) -> function_allowed_tools_encoder(allowed_tools)
     ForcedFunction(FunctionName(name)) -> {
       json.object([
         #("type", json.string("function")),
@@ -721,10 +739,34 @@ pub type FunctionName {
   FunctionName(String)
 }
 
+fn function_name_encoder(fn_name: FunctionName) {
+  let FunctionName(name) = fn_name
+  json.string(name)
+}
+
 pub type FunctionAllowedTools {
   FunctionAllowedTools(
     // "auto"
-    mode: String,
+    mode: Mode,
     tools: List(FunctionName),
   )
+}
+
+fn function_allowed_tools_encoder(allowed_tools: FunctionAllowedTools) {
+  json.object([
+    #("mode", mode_encoder(allowed_tools.mode)),
+    #("tools", json.array(allowed_tools.tools, function_name_encoder)),
+  ])
+}
+
+pub type Mode {
+  ModeAuto
+  ModesRequired
+}
+
+fn mode_encoder(mode: Mode) {
+  case mode {
+    ModeAuto -> json.string("auto")
+    ModesRequired -> json.string("required")
+  }
 }

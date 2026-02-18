@@ -19,7 +19,7 @@ const responses_url = "https://api.openai.com/v1/responses"
 pub fn default_request() -> CreateResponse {
   CreateResponse(
     model: shared.GPT41Mini,
-    input: cr.InputText(""),
+    input: cr.Input(""),
     instructions: None,
     temperature: None,
     stream: None,
