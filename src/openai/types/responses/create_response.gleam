@@ -11,8 +11,8 @@ pub type CreateResponse {
     instructions: Option(String),
     temperature: Option(Float),
     stream: Option(Bool),
+    tool_choice: Option(ToolChoice),
     tools: Option(List(Tools)),
-    tool_choice: Option(FunctionToolChoice),
   )
 }
 
@@ -33,10 +33,7 @@ pub fn create_response_encoder(config: CreateResponse) -> Json {
       None -> #("stream", json.null())
     },
     case config.tool_choice {
-      Some(tool_choice) -> #(
-        "tool_choice",
-        function_tool_choice_encoder(tool_choice),
-      )
+      Some(tool_choice) -> #("tool_choice", tool_choice_encoder(tool_choice))
       None -> #("tool_choice", json.null())
     },
     case config.tools {
@@ -703,70 +700,68 @@ pub type UserLocation {
   )
 }
 
-pub type FunctionToolChoice {
-  /// (Default) Call zero, one, or multiple functions. `tool_choice: "auto"`
-  Auto
-  /// Call one or more functions. `tool_choice: "required"`
-  Required
-  /// Call exactly one specific function.
-  /// `tool_choice: {"type": "function", "name": "get_weather"}`
-  ForcedFunction(FunctionName)
-  /// Restrict the tool calls the model can make to a subset of the tools
-  /// available to the model.
-  AllowedTools(FunctionAllowedTools)
-  /// You can also set tool_choice to "none" to imitate the behavior of
-  /// passing no functions.
-  Nothing
+pub type BuiltInTools {
+  FileSearch
+  WebSearchPreview
+  ComputerUsePreview
+  CodeInterpreter
+  ImageGeneration
 }
 
-fn function_tool_choice_encoder(tool_choice: FunctionToolChoice) -> Json {
-  case tool_choice {
-    Nothing -> json.null()
-    Auto -> json.string("auto")
-    Required -> json.string("required")
-    AllowedTools(allowed_tools) -> function_allowed_tools_encoder(allowed_tools)
-    ForcedFunction(FunctionName(name)) -> {
-      json.object([
-        #("type", json.string("function")),
-        #("name", json.string(name)),
-      ])
-    }
+fn built_in_tools_encoder(built_in_tools: BuiltInTools) {
+  let tool_string = case built_in_tools {
+    FileSearch -> "file_search"
+    WebSearchPreview -> "web_search_preview"
+    ComputerUsePreview -> "computer_use_preview"
+    CodeInterpreter -> "code_interpreter"
+    ImageGeneration -> "image_generation"
   }
+  json.object([#("type", json.string(tool_string))])
 }
 
-pub type FunctionName {
-  /// `{type: "function", name: String}`
-  FunctionName(String)
-}
-
-fn function_name_encoder(fn_name: FunctionName) {
-  let FunctionName(name) = fn_name
-  json.string(name)
-}
-
-pub type FunctionAllowedTools {
-  FunctionAllowedTools(
-    // "auto"
+pub type ToolChoice {
+  ToolChoiceOptions(Mode)
+  ToolChoiceAllowed(
     mode: Mode,
-    tools: List(FunctionName),
+    tools: Json,
+    // type: String, ; Always "allowed_tools"
+  )
+  ToolChoiceTypes(BuiltInTools)
+  ToolChoiceFunction(
+    name: String,
+    // type: String, ; Always "function"
   )
 }
 
-fn function_allowed_tools_encoder(allowed_tools: FunctionAllowedTools) {
-  json.object([
-    #("mode", mode_encoder(allowed_tools.mode)),
-    #("tools", json.array(allowed_tools.tools, function_name_encoder)),
-  ])
-}
-
 pub type Mode {
-  ModeAuto
-  ModesRequired
+  Auto
+  Required
+  Nothing
 }
 
 fn mode_encoder(mode: Mode) {
   case mode {
-    ModeAuto -> json.string("auto")
-    ModesRequired -> json.string("required")
+    Auto -> json.string("auto")
+    Required -> json.string("required")
+    // None is a reserved type, so we use Nothing
+    Nothing -> json.string("none")
+  }
+}
+
+fn tool_choice_encoder(tool_choice: ToolChoice) {
+  case tool_choice {
+    ToolChoiceOptions(mode) -> mode_encoder(mode)
+    ToolChoiceAllowed(mode:, tools:) ->
+      json.object([
+        #("mode", mode_encoder(mode)),
+        #("tools", tools),
+        #("type", json.string("allowed_tools")),
+      ])
+    ToolChoiceTypes(built_in_tools) -> built_in_tools_encoder(built_in_tools)
+    ToolChoiceFunction(name:) ->
+      json.object([
+        #("name", json.string(name)),
+        #("type", json.string("function")),
+      ])
   }
 }

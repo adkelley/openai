@@ -18,7 +18,7 @@ const responses_url = "https://api.openai.com/v1/responses"
 
 pub fn default_request() -> CreateResponse {
   CreateResponse(
-    model: shared.GPT41Mini,
+    model: shared.GPT5Mini,
     input: cr.Input(""),
     instructions: None,
     temperature: None,
@@ -43,10 +43,7 @@ pub fn instructions(
   CreateResponse(..config, instructions:)
 }
 
-pub fn function_tool_choice(
-  config: CreateResponse,
-  tool_choice: cr.FunctionToolChoice,
-) {
+pub fn tool_choice(config: CreateResponse, tool_choice: cr.ToolChoice) {
   CreateResponse(..config, tool_choice: Some(tool_choice))
 }
 
