@@ -10,7 +10,7 @@ pub type Role {
   OtherRole(String)
 }
 
-pub fn role_encoder(role: Role) -> Json {
+pub fn encode_role(role: Role) -> Json {
   case role {
     Assistant -> "assistant"
     OtherRole(str) -> str
@@ -21,7 +21,7 @@ pub fn role_encoder(role: Role) -> Json {
   |> json.string
 }
 
-pub fn role_decoder() {
+pub fn decode_role() {
   use role_string <- decode.then(decode.string)
   case role_string {
     "assistant" -> decode.success(Assistant)
@@ -33,7 +33,7 @@ pub fn role_decoder() {
 }
 
 /// The model to use for generating a response.
-pub type Model {
+pub type ResponsesModel {
   O1
   O1Mini
   O1Pro
@@ -55,7 +55,7 @@ pub type Model {
   Other(String)
 }
 
-pub fn model_encoder(model: Model) -> Json {
+pub fn encode_model(model: ResponsesModel) -> Json {
   case model {
     ComputerUsePreview -> "computer-use-preview"
     GPT35Turbo -> "gpt-3.5-turbo"

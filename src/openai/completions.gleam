@@ -9,7 +9,6 @@ import gleam/option.{None}
 import gleam/result
 import gleam/string
 
-// import openai/decoders/completions as decoders
 import openai/error
 import openai/types/completions
 import openai/types/shared
@@ -74,7 +73,7 @@ pub fn create(
 
   use resp <- result.try(httpc.send(req) |> error.replace_error())
   use completion <- result.try(
-    json.parse(resp.body, completions.chat_completion_decoder())
+    json.parse(resp.body, completions.decode_chat_completion())
     |> result.replace_error(error.BadResponse),
   )
 
@@ -137,7 +136,7 @@ pub fn stream_create_handler(
       let res =
         list.map(chunk, fn(chunk) {
           use completion <- result.try(
-            json.parse(chunk, completions.completion_chunk_decoder())
+            json.parse(chunk, completions.decode_completion_chunk())
             |> result.replace_error(error.BadResponse),
           )
           Ok(completion)
@@ -177,14 +176,14 @@ fn json_body(
   let json_msg = fn(role: shared.Role, content: String) {
     [
       json.object([
-        #("role", shared.role_encoder(role)),
+        #("role", shared.encode_role(role)),
         #("content", json.string(content)),
       ]),
     ]
   }
 
   json.object([
-    #("model", shared.model_encoder(config.name)),
+    #("model", shared.encode_model(config.name)),
     #("temperature", json.float(config.temperature)),
     #("stream", json.bool(config.stream)),
     #(

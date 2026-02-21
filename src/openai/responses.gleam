@@ -28,7 +28,7 @@ pub fn default_request() -> CreateResponse {
   )
 }
 
-pub fn model(config: CreateResponse, model: shared.Model) {
+pub fn model(config: CreateResponse, model: shared.ResponsesModel) {
   CreateResponse(..config, model:)
 }
 
@@ -66,7 +66,7 @@ pub fn create(
   let assert Ok(base_req) = http_request.to(responses_url)
 
   let body =
-    cr.create_response_encoder(config)
+    cr.encode_create_response(config)
     |> json.to_string
   // |> echo
 

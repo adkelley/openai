@@ -77,7 +77,7 @@ pub fn main() -> Result(Response, OpenaiError) {
     responses.default_request()
     |> responses.model(shared.GPT51)
     |> responses.input(cr.ResponseInput(hop1))
-    |> responses.tool_choice(cr.ToolChoiceOptions(cr.Auto))
+    |> responses.tool_choice(cr.ToolChoiceOptions(cr.Required))
     // Define the list of callable tools for the model
     |> responses.tools(Some([]), horoscope_tool)
 
