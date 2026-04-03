@@ -1,0 +1,27 @@
+name: test
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - "examples/**"
+  pull_request:
+    paths-ignore:
+      - "examples/**"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.4.0"
+          gleam-version: "1.15.0"
+          rebar3-version: "3"
+          # elixir-version: "1"
+      - run: gleam deps download
+      - run: gleam test
