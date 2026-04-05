@@ -1,3 +1,4 @@
+import gleam/dynamic/decode.{type Decoder}
 import gleam/json
 import gleam/option.{None, Some}
 import gleam/result
@@ -51,7 +52,10 @@ pub fn with_model(request: CreateResponse, model: String) {
   CreateResponse(..request, model:)
 }
 
-pub fn with_input(request: CreateResponse, input: InputOutputParam) -> CreateResponse {
+pub fn with_input(
+  request: CreateResponse,
+  input: InputOutputParam,
+) -> CreateResponse {
   CreateResponse(..request, input:)
 }
 
@@ -104,6 +108,14 @@ pub fn create(
   client client: Client,
   request request: CreateResponse,
 ) -> Result(Response, OpenAIError) {
+  create_with_decoder(client, request, response.decode_response())
+}
+
+pub fn create_with_decoder(
+  client client: Client,
+  request request: CreateResponse,
+  decoder decoder: Decoder(a),
+) -> Result(a, OpenAIError) {
   let body =
     response.encode_create_response(request)
     |> json.to_string
@@ -118,7 +130,7 @@ pub fn create(
   ))
 
   use result <- result.try(
-    json.parse(resp, response.decode_response())
+    json.parse(resp, decoder)
     |> result.replace_error(error.BadResponse),
   )
 

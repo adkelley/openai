@@ -1,43 +1,42 @@
 # AGENTS.md
 
-This file provides guidance to agents when working with code in this repository.
+Guidance for working in this repository.
 
-## Project Overview
+## Overview
 
-`openai` is an SDK for the [OpenAI API](https://developers.openai.com/api/reference/) written in Gleam. It wraps this REST API with typed request/response
-structures, streaming support, and helpful utilities so Gleam applications can call the Responses, Files, Chat Completions, and Embeddings endpoints without hand-
-writing JSON plumbing.
+`openai` is a Gleam SDK for the [OpenAI API](https://developers.openai.com/api/reference/). It provides typed requests and responses, streaming support, and helpers for Responses, Files, Chat Completions, Audio, and Embeddings.
 
-## Best Coding Practices
+## Conventions
 
-### Documentation
-- Documentation lines for public functions and public types are prefixed with '/// '
-- Documentation lines for private functions, types, and todos are prefixed with '//'
-- Todos are prefixed with '// TODO ' followed by the action
-- If you reference a function in your documentation, then unless it's a foreign function (e.g., Erlang), use Gleam syntax, only
+- Public docs use `///`.
+- Private docs and TODOs use `//`.
+- TODOs use `// TODO ...`.
+- When docs reference Gleam functions, use Gleam syntax unless the function is foreign.
+- If a record field refers to another record type, place the child record below the parent.
+- When practical, keep encoders and decoders close to the type they encode or decode.
 
-### Record Data Types
-- If a field within a record references another record (i.e. parent -> child) , then place the child record below the parent record
+## Example Verification
 
-### Encoders and Decoders (e.g., Json)
-- In general, whenever possible, place an encoder or decoder function just below the type declaration (e.g., records)
+If an example depends on the published Git version of this package and that blocks local verification:
 
-
-### Development
-When Git-based examples in the `openai/examples` directory are a blocker for local verification, but the example source itself is what you need to validate, do the following:
-
-1. Temporarily replace `openai = { git = "https://github.com/adkelley/openai", ref = "main" }` with `openai = { path = "../.." }` in the example's `gleam.toml` file.
-   You can use `sh scripts/set_example_openai_dep.sh local examples/<example_name>` to do this.
+1. Point the example at the local checkout:
+   `sh scripts/set_example_openai_dep.sh local examples/<example_name>`
 2. Run `gleam clean` in the example directory.
-3. If `manifest.toml` still prevents dependency resolution, ask the user for approval before removing it because `rm` is a destructive command.
+3. If `manifest.toml` still blocks dependency resolution, ask before removing it.
 4. Run `gleam check` in the example directory.
+5. Restore the Git dependency when done:
+   `sh scripts/set_example_openai_dep.sh git examples/<example_name>`
 
-Once verification succeeds, restore the original Git dependency in the example's `gleam.toml` file. You can use `sh scripts/set_example_openai_dep.sh git examples/<example_name>` to do this. Do not leave the example pointed at a local path unless the user explicitly asks for that change.
+Do not leave an example pointed at the local path unless the user asked for that change.
 
-Essential Commands:
+## Useful Commands
 
-- `gleam --help` - Help for the given subcommands
-- `gleam deps download` - Install dependencies
-- `gleam format` - Format the code
-- `gleam test` - Run all tests
-- `gleam check` - Type check the current package
+- `gleam deps download`
+- `gleam check`
+- `gleam test`
+- `gleam format`
+
+## Commits
+
+- Follow the commit message approach described in `docs/commit.md`
+- Prefer commit messages in the form `<symbol> <scope> - <summary>`
