@@ -1,6 +1,7 @@
 /// Streams chat completion deltas and prints them as they arrive.
 import openai/client
 
+import gleam/dynamic/decode
 import gleam/io
 import gleam/list
 
@@ -33,20 +34,30 @@ pub fn main() -> Result(Nil, OpenAIError) {
 
 // Recursively pulls and prints chunks from the active stream handler until completion.
 fn loop(handler: completions.StreamHandler) -> Result(Nil, OpenAIError) {
-  case completions.stream_create_handler(handler) {
-    Ok(completions.StreamChunk(completion_chunks)) -> {
-      list.map(completion_chunks, fn(completion_) {
-        list.map(completion_.choices, fn(choice) {
-          io.print(choice.delta.content)
-        })
+  case completions.stream_create_handler_with_decoder(
+    handler,
+    decode_first_completion_chunk_text(),
+  ) {
+    Ok(completions.DecodedStreamChunk(text_chunks)) -> {
+      list.map(text_chunks, fn(text) {
+        io.print(text)
       })
       loop(handler)
     }
-    Ok(completions.StreamStart(handler_)) -> loop(handler_)
-    Ok(completions.StreamEnd) -> {
+    Ok(completions.DecodedStreamStart(handler_)) -> loop(handler_)
+    Ok(completions.DecodedStreamEnd) -> {
       io.println("")
       Ok(Nil)
     }
     Error(e) -> Error(e)
   }
+}
+
+fn decode_first_completion_chunk_text() -> decode.Decoder(String) {
+  let decode_first_choice = fn() {
+    use content <- decode.subfield(["delta", "content"], decode.string)
+    decode.success(content)
+  }
+
+  decode.at(["choices"], decode.at([0], decode_first_choice()))
 }

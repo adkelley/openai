@@ -1,4 +1,5 @@
 import gleam/bit_array
+import gleam/dynamic/decode.{type Decoder}
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{None}
@@ -25,6 +26,12 @@ pub type StreamResponse {
   StreamEnd
 }
 
+pub type DecodedStreamResponse(a) {
+  DecodedStreamChunk(List(a))
+  DecodedStreamStart(StreamHandler)
+  DecodedStreamEnd
+}
+
 pub fn add_message(
   messages: List(completion.Message),
   role: role.Role,
@@ -48,6 +55,15 @@ pub fn create(
   config config: CompletionCreateParams,
   messages messages: List(completion.Message),
 ) -> Result(completion.ChatCompletion, OpenAIError) {
+  create_with_decoder(client, config, messages, completion.decode_chat_completion())
+}
+
+pub fn create_with_decoder(
+  client client: Client,
+  config config: CompletionCreateParams,
+  messages messages: List(completion.Message),
+  decoder decoder: Decoder(a),
+) -> Result(a, OpenAIError) {
   use _ <- result.try(validate_unary_config(config))
   let #(headers, body) = request_parts(config, messages)
 
@@ -60,7 +76,8 @@ pub fn create(
     None,
   ))
   use completion <- result.try(
-    json.parse(resp, completion.decode_chat_completion())
+    // json.parse(resp, completion.decode_chat_completion())
+    json.parse(resp, decoder)
     |> result.replace_error(error.BadResponse),
   )
 
@@ -90,13 +107,32 @@ pub fn stream_create(
 pub fn stream_create_handler(
   handler: StreamHandler,
 ) -> Result(StreamResponse, OpenAIError) {
-  stream_create_handler_loop(handler, "")
+  use response <- result.try(
+    stream_create_handler_with_decoder(
+      handler,
+      completion.decode_completion_chunk(),
+    ),
+  )
+
+  case response {
+    DecodedStreamChunk(chunks) -> Ok(StreamChunk(chunks))
+    DecodedStreamStart(handler) -> Ok(StreamStart(handler))
+    DecodedStreamEnd -> Ok(StreamEnd)
+  }
+}
+
+pub fn stream_create_handler_with_decoder(
+  handler: StreamHandler,
+  decoder: Decoder(a),
+) -> Result(DecodedStreamResponse(a), OpenAIError) {
+  stream_create_handler_loop(handler, "", decoder)
 }
 
 fn stream_create_handler_loop(
   handler: StreamHandler,
   buffer: String,
-) -> Result(StreamResponse, OpenAIError) {
+  decoder: Decoder(a),
+) -> Result(DecodedStreamResponse(a), OpenAIError) {
   let StreamHandler(stream) = handler
 
   case transport.receive_next(stream, timeout) {
@@ -111,25 +147,25 @@ fn stream_create_handler_loop(
       case events {
         [] ->
           case saw_done {
-            True -> Ok(StreamEnd)
-            False -> stream_create_handler_loop(handler, remaining)
+            True -> Ok(DecodedStreamEnd)
+            False -> stream_create_handler_loop(handler, remaining, decoder)
           }
         _ -> {
           let res =
             list.map(events, fn(event) {
               use completion_ <- result.try(
-                json.parse(event, completion.decode_completion_chunk())
+                json.parse(event, decoder)
                 |> result.replace_error(error.BadResponse),
               )
               Ok(completion_)
             })
             |> result.values()
-          Ok(StreamChunk(res))
+          Ok(DecodedStreamChunk(res))
         }
       }
     }
-    Ok(transport.StreamStart) -> Ok(StreamStart(handler))
-    Ok(transport.StreamEnd) -> Ok(StreamEnd)
+    Ok(transport.StreamStart) -> Ok(DecodedStreamStart(handler))
+    Ok(transport.StreamEnd) -> Ok(DecodedStreamEnd)
     Ok(transport.StreamError(error)) -> Error(error)
     Error(error) -> Error(error)
   }

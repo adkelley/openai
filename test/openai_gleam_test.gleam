@@ -1,4 +1,5 @@
 import gleam/bit_array
+import gleam/dynamic/decode
 import gleam/erlang/process
 import gleam/json
 import gleam/list
@@ -12,6 +13,7 @@ import openai/completions
 import openai/embeddings
 import openai/error
 import openai/responses
+import openai/transport
 import openai/types/audio/transcription
 import openai/types/audio/translation
 import openai/types/completion
@@ -26,7 +28,6 @@ import openai/types/responses/tools/function
 import openai/types/responses/tools/shell
 import openai/types/responses/tools/web_search
 import openai/types/role.{System, User}
-import openai/transport
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -232,7 +233,8 @@ pub fn embeddings_create_uses_client_transport_test() {
 
   let fake_transport =
     transport.new_transport(fn(req) {
-      let transport.TransportRequest(method, url, headers, body, timeout_ms) = req
+      let transport.TransportRequest(method, url, headers, body, timeout_ms) =
+        req
 
       assert method == transport.Post
       assert url == "https://api.openai.com/v1/embeddings"
@@ -277,49 +279,54 @@ pub fn client_send_text_maps_http_errors_test() {
     client.new_with_transport("test-key", status_transport(500))
 
   assert client.send_text(
-    invalid_request_client,
-    transport.Post,
-    "https://example.test",
-    [],
-    "{}",
-    None,
-  ) == Error(error.InvalidRequest("request failed"))
+      invalid_request_client,
+      transport.Post,
+      "https://example.test",
+      [],
+      "{}",
+      None,
+    )
+    == Error(error.InvalidRequest("request failed"))
 
   assert client.send_text(
-    auth_client,
-    transport.Post,
-    "https://example.test",
-    [],
-    "{}",
-    None,
-  ) == Error(error.Authentication("request failed"))
+      auth_client,
+      transport.Post,
+      "https://example.test",
+      [],
+      "{}",
+      None,
+    )
+    == Error(error.Authentication("request failed"))
 
   assert client.send_text(
-    not_found_client,
-    transport.Post,
-    "https://example.test",
-    [],
-    "{}",
-    None,
-  ) == Error(error.NotFound("request failed"))
+      not_found_client,
+      transport.Post,
+      "https://example.test",
+      [],
+      "{}",
+      None,
+    )
+    == Error(error.NotFound("request failed"))
 
   assert client.send_text(
-    rate_limit_client,
-    transport.Post,
-    "https://example.test",
-    [],
-    "{}",
-    None,
-  ) == Error(error.RateLimit("request failed"))
+      rate_limit_client,
+      transport.Post,
+      "https://example.test",
+      [],
+      "{}",
+      None,
+    )
+    == Error(error.RateLimit("request failed"))
 
   assert client.send_text(
-    internal_server_client,
-    transport.Post,
-    "https://example.test",
-    [],
-    "{}",
-    None,
-  ) == Error(error.InternalServer("request failed"))
+      internal_server_client,
+      transport.Post,
+      "https://example.test",
+      [],
+      "{}",
+      None,
+    )
+    == Error(error.InternalServer("request failed"))
 }
 
 pub fn client_send_text_handles_bad_error_json_and_byte_bodies_test() {
@@ -348,28 +355,31 @@ pub fn client_send_text_handles_bad_error_json_and_byte_bodies_test() {
     )
 
   assert client.send_text(
-    bad_error_json_client,
-    transport.Post,
-    "https://example.test",
-    [],
-    "{}",
-    None,
-  ) == Error(error.BadResponse)
+      bad_error_json_client,
+      transport.Post,
+      "https://example.test",
+      [],
+      "{}",
+      None,
+    )
+    == Error(error.BadResponse)
 
   assert client.send_text(
-    byte_response_client,
-    transport.Post,
-    "https://example.test",
-    [],
-    "{}",
-    None,
-  ) == Ok("{\"ok\":true}")
+      byte_response_client,
+      transport.Post,
+      "https://example.test",
+      [],
+      "{}",
+      None,
+    )
+    == Ok("{\"ok\":true}")
 }
 
 pub fn audio_create_transcription_uses_client_transport_test() {
   let fake_transport =
     transport.new_transport(fn(req) {
-      let transport.TransportRequest(method, url, headers, body, timeout_ms) = req
+      let transport.TransportRequest(method, url, headers, body, timeout_ms) =
+        req
 
       assert method == transport.Post
       assert url == "https://api.openai.com/v1/audio/transcriptions"
@@ -409,15 +419,15 @@ pub fn audio_create_transcription_uses_client_transport_test() {
 
   let assert Ok(response) = audio.create_transcription(client, request)
   assert response.text == "hello there"
-  assert response.usage == transcription.DurationUsage(
-    transcription.DurationUsageDef(seconds: 3),
-  )
+  assert response.usage
+    == transcription.DurationUsage(transcription.DurationUsageDef(seconds: 3))
 }
 
 pub fn audio_create_translation_accepts_byte_transport_response_test() {
   let fake_transport =
     transport.new_transport(fn(req) {
-      let transport.TransportRequest(method, url, headers, body, timeout_ms) = req
+      let transport.TransportRequest(method, url, headers, body, timeout_ms) =
+        req
 
       assert method == transport.Post
       assert url == "https://api.openai.com/v1/audio/translations"
@@ -460,7 +470,8 @@ pub fn audio_create_translation_accepts_byte_transport_response_test() {
 pub fn responses_create_uses_client_transport_test() {
   let fake_transport =
     transport.new_transport(fn(req) {
-      let transport.TransportRequest(method, url, headers, body, timeout_ms) = req
+      let transport.TransportRequest(method, url, headers, body, timeout_ms) =
+        req
 
       assert method == transport.Post
       assert url == "https://api.openai.com/v1/responses"
@@ -496,7 +507,8 @@ pub fn responses_create_uses_client_transport_test() {
 pub fn completions_create_uses_client_transport_test() {
   let fake_transport =
     transport.new_transport(fn(req) {
-      let transport.TransportRequest(method, url, headers, body, timeout_ms) = req
+      let transport.TransportRequest(method, url, headers, body, timeout_ms) =
+        req
 
       assert method == transport.Post
       assert url == "https://api.openai.com/v1/chat/completions"
@@ -527,12 +539,52 @@ pub fn completions_create_uses_client_transport_test() {
   assert choice.message.content == "Streaming is working."
 }
 
+pub fn completions_create_with_decoder_uses_client_transport_test() {
+  let fake_transport =
+    transport.new_transport(fn(req) {
+      let transport.TransportRequest(method, url, headers, body, timeout_ms) =
+        req
+
+      assert method == transport.Post
+      assert url == "https://api.openai.com/v1/chat/completions"
+      assert headers
+        == [
+          #("Authorization", "Bearer test-key"),
+          #("Content-Type", "application/json"),
+        ]
+      assert body == transport.Text(completion_request_body(False))
+      assert timeout_ms == None
+
+      Ok(transport.TransportResponse(
+        status: 200,
+        headers: [],
+        body: transport.Text(chat_completion_response_body()),
+      ))
+    })
+
+  let client = client.new_with_transport("test-key", fake_transport)
+  let config = completion.new()
+  let messages = completion_messages()
+
+  let assert Ok(text) =
+    completions.create_with_decoder(
+      client,
+      config,
+      messages,
+      decode_first_chat_completion_text(),
+    )
+
+  assert text == "Streaming is working."
+}
+
 pub fn completions_create_rejects_streaming_config_test() {
   let client =
-    client.new_with_transport("test-key", transport.new_transport(fn(_req) {
-      Error(error.Unknown)
-    }))
-  let config = completion.CompletionCreateParams(..completion.new(), stream: True)
+    client.new_with_transport(
+      "test-key",
+      transport.new_transport(fn(_req) { Error(error.Unknown) }),
+    )
+  let config =
+    completion.CompletionCreateParams(..completion.new(), stream: True)
 
   assert completions.create(client, config, completion_messages())
     == Error(error.InvalidRequest(
@@ -580,6 +632,52 @@ pub fn create_chat_completion_response_decoding_with_missing_optional_fields_tes
     == completion.PromptTokenDetails(cached_tokens: 0, audio_tokens: 0)
 }
 
+pub fn decode_first_completion_chunk_text_test() {
+  let body =
+    "
+{
+  \"id\": \"chatcmpl-123\",
+  \"object\": \"chat.completion.chunk\",
+  \"created\": 1710000000,
+  \"model\": \"gpt-5.2\",
+  \"choices\": [
+    {
+      \"index\": 0,
+      \"delta\": {
+        \"role\": \"assistant\",
+        \"content\": \"Hello\"
+      },
+      \"finish_reason\": null
+    }
+  ],
+  \"system_fingerprint\": null
+}
+"
+
+  let assert Ok(decoded) =
+    json.parse(body, decode_first_completion_chunk_text())
+
+  assert decoded == "Hello"
+}
+
+fn decode_first_chat_completion_text() -> decode.Decoder(String) {
+  let decode_first_choice = fn() {
+    use content <- decode.subfield(["message", "content"], decode.string)
+    decode.success(content)
+  }
+
+  decode.at(["choices"], decode.at([0], decode_first_choice()))
+}
+
+fn decode_first_completion_chunk_text() -> decode.Decoder(String) {
+  let decode_first_choice = fn() {
+    use content <- decode.subfield(["delta", "content"], decode.string)
+    decode.success(content)
+  }
+
+  decode.at(["choices"], decode.at([0], decode_first_choice()))
+}
+
 pub fn completions_stream_create_uses_stream_transport_test() {
   let fake_transport =
     transport.new_transport_with_stream(
@@ -603,29 +701,27 @@ pub fn completions_stream_create_uses_stream_transport_test() {
         process.send(subject, transport.StreamStart)
         process.send(
           subject,
-          transport.StreamChunk(
-            bit_array.from_string(
-              "data: {\"id\":\"chatcmpl-123\",\"object\":\"chat.completion.chunk\",\"created\":1710000000,\"model\":\"gpt-5.2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hello\"},\"finish_reason\":null}],\"system_fingerprint\":null}\n\n",
-            ),
-          ),
+          transport.StreamChunk(bit_array.from_string(
+            "data: {\"id\":\"chatcmpl-123\",\"object\":\"chat.completion.chunk\",\"created\":1710000000,\"model\":\"gpt-5.2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hello\"},\"finish_reason\":null}],\"system_fingerprint\":null}\n\n",
+          )),
         )
         process.send(
           subject,
           transport.StreamChunk(bit_array.from_string("data: [DONE]\n\n")),
         )
 
-        Ok(transport.new_stream(fn(timeout_ms) {
-          process.receive(subject, within: timeout_ms)
-          |> result.replace_error(error.Timeout)
-        }))
+        Ok(
+          transport.new_stream(fn(timeout_ms) {
+            process.receive(subject, within: timeout_ms)
+            |> result.replace_error(error.Timeout)
+          }),
+        )
       },
     )
 
   let client = client.new_with_transport("test-key", fake_transport)
-  let config = completion.CompletionCreateParams(
-    ..completion.new(),
-    stream: True,
-  )
+  let config =
+    completion.CompletionCreateParams(..completion.new(), stream: True)
   let messages = completion_messages()
 
   let assert Ok(handler) = completions.stream_create(client, config, messages)
@@ -640,6 +736,59 @@ pub fn completions_stream_create_uses_stream_transport_test() {
   assert completions.stream_create_handler(handler) == Ok(completions.StreamEnd)
 }
 
+pub fn completions_stream_create_handler_with_decoder_test() {
+  let fake_transport =
+    transport.new_transport_with_stream(
+      fn(_req) { Error(error.Unknown) },
+      fn(_req) {
+        let subject = process.new_subject()
+        process.send(subject, transport.StreamStart)
+        process.send(
+          subject,
+          transport.StreamChunk(bit_array.from_string(
+            "data: {\"id\":\"chatcmpl-123\",\"object\":\"chat.completion.chunk\",\"created\":1710000000,\"model\":\"gpt-5.2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hello\"},\"finish_reason\":null}],\"system_fingerprint\":null}\n\n",
+          )),
+        )
+        process.send(
+          subject,
+          transport.StreamChunk(bit_array.from_string("data: [DONE]\n\n")),
+        )
+
+        Ok(
+          transport.new_stream(fn(timeout_ms) {
+            process.receive(subject, within: timeout_ms)
+            |> result.replace_error(error.Timeout)
+          }),
+        )
+      },
+    )
+
+  let client = client.new_with_transport("test-key", fake_transport)
+  let config =
+    completion.CompletionCreateParams(..completion.new(), stream: True)
+  let messages = completion_messages()
+
+  let assert Ok(handler) = completions.stream_create(client, config, messages)
+  let assert Ok(completions.DecodedStreamStart(handler)) =
+    completions.stream_create_handler_with_decoder(
+      handler,
+      completion.decode_completion_chunk(),
+    )
+  let assert Ok(completions.DecodedStreamChunk(chunks)) =
+    completions.stream_create_handler_with_decoder(
+      handler,
+      completion.decode_completion_chunk(),
+    )
+  let assert [chunk] = chunks
+  let assert [choice] = chunk.choices
+  assert choice.delta.content == "Hello"
+  assert completions.stream_create_handler_with_decoder(
+      handler,
+      completion.decode_completion_chunk(),
+    )
+    == Ok(completions.DecodedStreamEnd)
+}
+
 pub fn completions_stream_create_rejects_non_streaming_config_test() {
   let client =
     client.new_with_transport(
@@ -650,7 +799,11 @@ pub fn completions_stream_create_rejects_non_streaming_config_test() {
       ),
     )
 
-  assert completions.stream_create(client, completion.new(), completion_messages())
+  assert completions.stream_create(
+      client,
+      completion.new(),
+      completion_messages(),
+    )
     == Error(error.InvalidRequest(
       "completions.stream_create requires config.stream to be True",
     ))
@@ -821,7 +974,9 @@ pub fn create_response_json_encoding_test() {
             #("type", json.string("object")),
             #(
               "properties",
-              json.object([#("city", json.object([#("type", json.string("string"))]))]),
+              json.object([
+                #("city", json.object([#("type", json.string("string"))])),
+              ]),
             ),
             #("required", json.array(["city"], json.string)),
           ]),
@@ -986,21 +1141,20 @@ pub fn response_full_decoding_test() {
   assert truncation == "disabled"
   assert billing == response.Billing(payer: "developer")
   assert store
-  assert usage == Some(response.Usage(
-    input_tokens: 10_328,
-    input_tokens_details: response.InputTokensDetails(cached_tokens: 0),
-    output_tokens: 750,
-    output_tokens_details: response.OutputTokensDetails(reasoning_tokens: 37),
-    total_tokens: 11_078,
-  ))
+  assert usage
+    == Some(response.Usage(
+      input_tokens: 10_328,
+      input_tokens_details: response.InputTokensDetails(cached_tokens: 0),
+      output_tokens: 750,
+      output_tokens_details: response.OutputTokensDetails(reasoning_tokens: 37),
+      total_tokens: 11_078,
+    ))
   assert metadata == Some([])
   assert output == []
   let reasoning.ReasoningDef(effort:, summary:) = reasoning
   assert effort == Some(reasoning.Medium)
   assert summary == None
-  assert reasoning == reasoning.ReasoningDef(
-    effort: Some(reasoning.Medium),
-    summary: None,
-  )
+  assert reasoning
+    == reasoning.ReasoningDef(effort: Some(reasoning.Medium), summary: None)
   assert text == Some(response.ResponseFormatText)
 }
