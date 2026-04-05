@@ -16,5 +16,6 @@ returned JSON into a Gleam type, and prints the extracted ticket fields.
 gleam run
 ```
 
-The example uses `text.format = json_schema` and then parses the model's JSON
-response into a typed Gleam record.
+The example uses `text.format = json_schema` and
+`responses.create_with_decoder/3` to decode the Responses payload directly into
+a typed Gleam record.

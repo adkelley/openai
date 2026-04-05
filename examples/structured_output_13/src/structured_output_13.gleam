@@ -7,7 +7,6 @@ import gleam/option.{type Option, None, Some}
 import openai/client
 import openai/error.{type OpenAIError}
 import openai/responses
-import openai/types/responses/message
 import openai/types/responses/response
 
 pub type Category {
@@ -59,11 +58,12 @@ pub fn main() -> Result(TicketSummary, OpenAIError) {
     )
     |> responses.with_text(text_config)
 
-  let assert Ok(api_response) = responses.create(client, request)
-  let assert Some(output_message) = find_output_message(api_response.output)
-  let assert [message.OutputTextItem(message.OutputText(text:, ..)), ..] =
-    output_message.content
-  let assert Ok(ticket) = json.parse(text, decode_ticket_summary())
+  let assert Ok(ticket) =
+    responses.create_with_decoder(
+      client,
+      request,
+      decode_ticket_summary_response(),
+    )
 
   io.println("\nStructured extraction:")
   io.println("Customer: " <> ticket.customer_name)
@@ -79,6 +79,35 @@ pub fn main() -> Result(TicketSummary, OpenAIError) {
   )
 
   Ok(ticket)
+}
+
+fn decode_ticket_summary_response() -> decode.Decoder(TicketSummary) {
+  decode.then(decode_output_message_text(), fn(text) {
+    case json.parse(text, decode_ticket_summary()) {
+      Ok(ticket) -> decode.success(ticket)
+      Error(_) ->
+        decode.failure(
+          TicketSummary(
+            customer_name: "",
+            company_name: "",
+            issue_summary: "",
+            category: Billing,
+            severity: Low,
+            requires_follow_up: False,
+            suggested_actions: [],
+          ),
+          expected: "valid ticket summary JSON",
+        )
+    }
+  })
+}
+
+fn decode_output_message_text() -> decode.Decoder(String) {
+  use outputs <- decode.field("output", decode.list(decode_output_item_text()))
+  case first_non_empty_text(option.values(outputs)) {
+    Some(text) -> decode.success(text)
+    None -> decode.failure("", expected: "non-empty message output text")
+  }
 }
 
 fn ticket_summary_schema() -> Json {
@@ -214,13 +243,23 @@ fn decode_severity() -> decode.Decoder(Severity) {
   })
 }
 
-fn find_output_message(
-  output: List(response.InputOutput),
-) -> Option(message.ResponseOutputMessage) {
-  case output {
-    [response.ResponseOutputMessageItem(response_output_message), ..] ->
-      Some(response_output_message)
-    [_, ..rest] -> find_output_message(rest)
+fn decode_output_item_text() -> decode.Decoder(Option(String)) {
+  use type_ <- decode.field("type", decode.string)
+  case type_ {
+    "message" ->
+      decode.at(["content"], decode.at([0], decode.at(["text"], decode.string)))
+      |> decode.map(Some)
+    _ -> decode.success(None)
+  }
+}
+
+fn first_non_empty_text(items: List(String)) -> Option(String) {
+  case items {
+    [text, ..rest] ->
+      case text {
+        "" -> first_non_empty_text(rest)
+        _ -> Some(text)
+      }
     [] -> None
   }
 }

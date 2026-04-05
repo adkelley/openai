@@ -2,8 +2,9 @@
 
 This example demonstrates how to register a local `skills.md` file with the
 Responses API by attaching it to the `shell` tool's local environment. The
-example points the model at the `examples/skills_12/skills.md` weather skill
-and asks it to describe the skill without invoking any tools.
+example points the model at the `examples/skills_12/skills.md` weather skill,
+combines it with a restricted `weather.gov` web search tool, and completes the
+tool loop with custom decoders.
 
 ## Prerequisites
 
@@ -17,5 +18,6 @@ and asks it to describe the skill without invoking any tools.
 gleam run
 ```
 
-The example builds a `shell` tool with `environment.type = "local"` and a
-single local skill entry whose `path` points at the current directory.
+The example builds a `shell` tool with `environment.type = "local"`, narrows
+web search to `weather.gov`, decodes shell call metadata for hop 1, and then
+decodes the first non-empty final answer text for hop 2.

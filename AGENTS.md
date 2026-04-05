@@ -17,6 +17,9 @@ Guidance for working in this repository.
 
 ## Example Verification
 
+Changes inside `examples/<example_name>` must be verified from that example's
+directory. A root-level `gleam check` does not typecheck the example packages.
+
 If an example depends on the published Git version of this package and that blocks local verification:
 
 1. Point the example at the local checkout:

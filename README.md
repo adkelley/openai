@@ -32,8 +32,8 @@ Set `OPENAI_API_KEY` in your environment before running any examples.
 ### Chat Completions
 
 ```gleam
+import gleam/dynamic/decode
 import gleam/io
-import gleam/list
 import openai/client
 import openai/completions
 import openai/error.{type OpenAIError}
@@ -48,21 +48,31 @@ pub fn main() -> Result(Nil, OpenAIError) {
     |> completions.add_message(User, "Why is the sky blue?")
 
   let config = completion.new()
-  let assert Ok(completion) =
-    completions.create(client, config, messages)
-
-  let content =
-    list.fold(completion.choices, "", fn(acc, choice) {
-      acc <> choice.message.content
-    })
+  let assert Ok(content) =
+    completions.create_with_decoder(
+      client,
+      config,
+      messages,
+      decode_first_chat_completion_text(),
+    )
 
   io.println(content)
   Ok(Nil)
 }
+
+fn decode_first_chat_completion_text() -> decode.Decoder(String) {
+  let decode_first_choice = fn() {
+    use content <- decode.subfield(["message", "content"], decode.string)
+    decode.success(content)
+  }
+
+  decode.at(["choices"], decode.at([0], decode_first_choice()))
+}
 ```
 
 Use `completions.stream_create/3` and `stream_create_handler/1` for streaming
-Chat Completions.
+Chat Completions. Use `completions.create/3` when you want the full typed
+completion response instead of a narrower decoded value.
 
 ### Responses API
 
@@ -92,6 +102,17 @@ pub fn main() -> Result(Nil, OpenAIError) {
 The Responses API helpers expose typed tool definitions for web search, MCP,
 shell, function calling, code interpreter, image input, and related response
 items.
+
+For narrower response handling, use `responses.create_with_decoder/3` to decode
+only the fields you need from the API payload. This is useful for:
+
+- extracting final text without unpacking `response.output` manually
+- decoding only tool-call metadata needed for a follow-up turn
+- decoding structured JSON output directly into a Gleam type
+
+Several Responses examples in `examples/` use this pattern together with
+`responses.with_previous_response_id/2` to keep multi-hop tool loops smaller
+and easier to read.
 
 ### Audio Transcriptions
 

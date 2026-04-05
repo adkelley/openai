@@ -47,9 +47,9 @@ pub fn main() -> Result(Nil, OpenAIError) {
 
 fn decode_output_message_text() -> decode.Decoder(String) {
   use outputs <- decode.field("output", decode.list(decode_output_item_text()))
-  case first_some(outputs) {
-    Some(text) -> decode.success(text)
-    None -> decode.failure("", expected: "message output text")
+  case option.values(outputs) {
+    [text, ..] -> decode.success(text)
+    [] -> decode.failure("", expected: "message output text")
   }
 }
 
@@ -60,13 +60,5 @@ fn decode_output_item_text() -> decode.Decoder(Option(String)) {
       decode.at(["content"], decode.at([0], decode.at(["text"], decode.string)))
       |> decode.map(Some)
     _ -> decode.success(None)
-  }
-}
-
-fn first_some(items: List(Option(a))) -> Option(a) {
-  case items {
-    [Some(value), ..] -> Some(value)
-    [None, ..rest] -> first_some(rest)
-    [] -> None
   }
 }

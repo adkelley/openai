@@ -1,8 +1,8 @@
 # web_search_04
 
 This example demonstrates the web search preview tool with the Responses API.
-It sends a question, enables `WebSearchPreview`, and prints the first output
-message plus any URL citations returned by the model.
+It sends a question, enables `WebSearchPreview`, and uses
+`responses.create_with_decoder/3` to decode the returned answer text directly.
 
 ## Prerequisites
 
@@ -16,5 +16,5 @@ message plus any URL citations returned by the model.
 gleam run
 ```
 
-The example uses the current client-based `responses.create/2` flow and then
-folds over `message.URLCitation` annotations to print the cited sources.
+The example demonstrates the custom decoder path for simple text extraction
+from a Responses payload.

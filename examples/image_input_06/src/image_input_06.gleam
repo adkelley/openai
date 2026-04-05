@@ -1,6 +1,9 @@
 /// Issues a Responses API call that pairs a text prompt with a remote image.
+import gleam/dynamic/decode
 import gleam/io
 import gleam/list
+import gleam/option.{type Option, None, Some}
+import gleam/string
 import openai/client
 import openai/error.{type OpenAIError}
 import openai/responses
@@ -10,7 +13,7 @@ import openai/types/responses/response
 import openai/types/role
 
 /// Builds an image-aware Responses request and prints the returned payload.
-pub fn main() -> Result(response.Response, OpenAIError) {
+pub fn main() -> Result(Nil, OpenAIError) {
   let assert Ok(client) = client.new()
 
   let image_url =
@@ -46,13 +49,37 @@ pub fn main() -> Result(response.Response, OpenAIError) {
     |> responses.with_input(input)
     |> responses.with_instructions(instructions)
 
-  let assert Ok(response) = responses.create(client, request)
-  let assert Ok(response.ResponseOutputMessageItem(message.ResponseOutputMessage(
-    content:,
-    ..,
-  ))) = list.last(response.output)
-  let assert Ok(message.OutputTextItem(message.OutputText(text:, ..))) =
-    list.first(content)
+  let assert Ok(text) =
+    responses.create_with_decoder(client, request, decode_output_message_text())
   io.println("\n" <> text)
-  Ok(response)
+  Ok(Nil)
+}
+
+fn decode_output_message_text() -> decode.Decoder(String) {
+  use outputs <- decode.field("output", decode.list(decode_output_item_text()))
+  case first_non_empty_text(option.values(outputs)) {
+    Some(text) -> decode.success(text)
+    None -> decode.failure("", expected: "non-empty message output text")
+  }
+}
+
+fn decode_output_item_text() -> decode.Decoder(Option(String)) {
+  use type_ <- decode.field("type", decode.string)
+  case type_ {
+    "message" ->
+      decode.at(["content"], decode.at([0], decode.at(["text"], decode.string)))
+      |> decode.map(Some)
+    _ -> decode.success(None)
+  }
+}
+
+fn first_non_empty_text(items: List(String)) -> Option(String) {
+  case items {
+    [text, ..rest] ->
+      case string.trim(text) {
+        "" -> first_non_empty_text(rest)
+        _ -> Some(text)
+      }
+    [] -> None
+  }
 }
