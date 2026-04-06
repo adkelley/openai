@@ -55,9 +55,9 @@ pub type InputOutput {
   MessageItem(message.Message)
   /// An output message from the model.
   ResponseOutputMessageItem(message.ResponseOutputMessage)
-  /// The results of a file search tool call. 
+  /// The results of a file search tool call.
   FileSearchCallItem(file_search.FileSearchCall)
-  /// A tool call to a computer use tool. 
+  /// A tool call to a computer use tool.
   ComputerCallItem(computer.ComputerCallDef)
   /// The output of a computer tool call.
   ComputerCallOutputItem(computer.ComputerCallOutputDef)
@@ -75,7 +75,7 @@ pub type InputOutput {
   /// Responses API for subsequent turns of a conversation
   /// if you are manually managing context.
   ReasoningItem(reasoning.ReasoningDef)
-  // 
+  //
   // A description of the chain of thought used by a reasoning model while /
   // generating a response. Be sure to include these items in your input to
   // the Responses API for subsequent turns of a conversation if you are
@@ -85,7 +85,7 @@ pub type InputOutput {
   CompactionItem(compaction.Compaction)
   /// An image generation request made by the model.
   ImageGenerationCallItem(image_generation.ImageGenerationCall)
-  /// A tool call to run code.   
+  /// A tool call to run code.
   CodeInterpreterCallItem(code_interpreter.CodeInterpreterCall)
   /// A tool call to run a command on the local shell.
   LocalShellCallItem(shell.LocalShellCall)
@@ -757,7 +757,7 @@ pub type Response {
     /// generally recommend altering this or top_p but not both.
     temperature: Float,
     /// How the model should select which tool (or tools) to use when
-    /// generating a response. 
+    /// generating a response.
     tool_choice: tool_choice.Param,
     /// An array of tools the model may call while generating a response. You
     /// can specify which tool to use by setting the tool_choice Param
@@ -819,7 +819,7 @@ pub type Response {
     /// in_progress, cancelled, queued, or incomplete.
     status: Status,
     /// Configuration options for a text response from the model. Can be plain
-    /// text or structured JSON data. 
+    /// text or structured JSON data.
     text: Option(TextResponseFormatConfiguration),
     /// An integer between 0 and 20 specifying the number of most likely
     /// tokens to return at each token position, each with an associated log
@@ -835,6 +835,14 @@ pub type Response {
     /// a breakdown of output tokens, and the total tokens used.
     usage: Option(Usage),
   )
+}
+
+/// Decodes a response ID and its output items.
+/// Useful for tool calls
+pub fn decode_id_output() -> Decoder(#(String, List(InputOutput))) {
+  use id <- decode.field("id", decode.string)
+  use output <- decode.field("output", decode.list(decode_io_item()))
+  decode.success(#(id, output))
 }
 
 fn decode_error() -> Decoder(Error) {

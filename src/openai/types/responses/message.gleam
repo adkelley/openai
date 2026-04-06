@@ -1,12 +1,12 @@
 import gleam/dynamic/decode.{type Decoder}
 import gleam/json.{type Json}
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import openai/types/helpers
 import openai/types/logprob.{type LogProb}
 import openai/types/responses/content.{type Content}
 import openai/types/role.{type Role}
 
-// TODO Change input message role to message role and input content to content.
 pub type Message {
   Message(content: List(Content), role: Role, status: Option(Status))
 }
@@ -251,7 +251,7 @@ fn encode_output_message_content(
   }
 }
 
-fn decode_output_message_content() -> Decoder(OutputMessageContent) {
+pub fn decode_output_message_content() -> Decoder(OutputMessageContent) {
   use type_ <- decode.field("type", decode.string)
   case type_ {
     "output_text" -> {
@@ -272,6 +272,16 @@ fn decode_output_message_content() -> Decoder(OutputMessageContent) {
     }
     _ -> panic as type_
   }
+}
+
+pub fn decode_output_message_texts() -> Decoder(List(List(String))) {
+  decode.at(
+    ["output"],
+    decode.list(decode.at(
+      ["content"],
+      decode.list(decode.at(["text"], decode.string)),
+    )),
+  )
 }
 
 pub type Status {

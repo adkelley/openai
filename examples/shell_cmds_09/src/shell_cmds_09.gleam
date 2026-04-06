@@ -1,8 +1,8 @@
-import gleam/dynamic/decode
 import gleam/erlang/atom.{type Atom}
 import gleam/erlang/charlist.{type Charlist}
 import gleam/io
-import gleam/option.{type Option, None, Some}
+import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
 import openai/client
 import openai/error.{type OpenAIError}
@@ -14,28 +14,26 @@ import openai/types/responses/tool
 import openai/types/responses/tools/shell
 import openai/types/role
 
-type Hop1Response {
-  Hop1Response(id: String, shell_calls: List(ShellCall))
-}
-
-type ShellCall {
-  ShellCall(call_id: String, commands: List(String), max_output_length: Int)
+type SafeCommand {
+  SafeCommand(program: String, args: List(String))
 }
 
 pub fn main() -> Result(Nil, OpenAIError) {
   let assert Ok(client) = client.new()
 
-  let input_text = "get the current directory"
-  // let input_text = "Execute: ls -al"
+  let input_text =
+    "What is the current directory? Also, please list out the files in that directory"
 
-  let hop1 = [
-    message.new()
-    |> message.with_role(role.User)
-    |> message.with_content([
-      content.new_text(input_text) |> content.TextContentItem,
-    ])
-    |> response.MessageItem,
-  ]
+  let hop1 =
+    [
+      message.new()
+      |> message.with_role(role.User)
+      |> message.with_content([
+        content.new_text(input_text) |> content.TextContentItem,
+      ])
+      |> response.MessageItem,
+    ]
+    |> response.Items
   io.println("\nPrompt: " <> input_text)
 
   let local_environment =
@@ -48,120 +46,152 @@ pub fn main() -> Result(Nil, OpenAIError) {
   let request =
     responses.new()
     |> responses.with_model("gpt-5.4")
-    |> responses.with_input(response.Items(hop1))
-    |> responses.with_instructions("The local bash environment is on macOS")
-    // Define the list of callable tools for the model
+    |> responses.with_input(hop1)
+    |> responses.with_instructions(
+      "The local bash environment is on macOS."
+      <> "\n Please separate the user's prompt into individual shell commands\n",
+    )
     |> responses.with_tools([shell_tool])
 
-  let assert Ok(hop1_response) =
-    responses.create_with_decoder(client, request, decode_hop1_response())
+  let assert Ok(#(id, input_output)) =
+    responses.create_with_decoder(client, request, response.decode_id_output())
   let hop2 =
-    hop1_response.shell_calls
+    input_output
     |> map_shell_call_outputs()
     |> response.Items
 
   let request =
     responses.new()
     |> responses.with_model("gpt-5.4")
-    |> responses.with_previous_response_id(hop1_response.id)
+    |> responses.with_previous_response_id(id)
     |> responses.with_input(hop2)
 
-  let assert Ok(text) =
-    responses.create_with_decoder(client, request, decode_output_message_text())
+  let assert Ok(messages) =
+    responses.create_with_decoder(
+      client,
+      request,
+      message.decode_output_message_texts(),
+    )
+
+  let text =
+    list.fold(list.flatten(messages), "", fn(acc, text) { acc <> text })
 
   io.println("Answer: " <> text)
 
   Ok(Nil)
 }
 
-fn decode_hop1_response() -> decode.Decoder(Hop1Response) {
-  use id <- decode.field("id", decode.string)
-  use output <- decode.field("output", decode.list(decode_shell_call_item()))
-  decode.success(Hop1Response(id:, shell_calls: option.values(output)))
-}
+fn map_shell_call_outputs(
+  items: List(response.InputOutput),
+) -> List(response.InputOutput) {
+  list.fold(items, [], fn(acc, item) {
+    case item {
+      response.ShellCallItem(shell.ShellCall(call_id:, action:, ..)) -> {
+        let output = process_shell_commands(action.commands)
 
-fn decode_shell_call_item() -> decode.Decoder(Option(ShellCall)) {
-  use type_ <- decode.field("type", decode.string)
-  case type_ {
-    "shell_call" -> {
-      use call_id <- decode.field("call_id", decode.string)
-      use commands <- decode.subfield(
-        ["action", "commands"],
-        decode.list(decode.string),
-      )
-      use max_output_length <- decode.subfield(
-        ["action", "max_output_length"],
-        decode.int,
-      )
-      decode.success(Some(ShellCall(call_id:, commands:, max_output_length:)))
-    }
-    _ -> decode.success(None)
-  }
-}
-
-fn map_shell_call_outputs(calls: List(ShellCall)) -> List(response.InputOutput) {
-  case calls {
-    [ShellCall(call_id:, commands:, max_output_length:), ..rest] -> {
-      let assert [command, ..] = commands
-      let shell_call_output = case command {
-        "pwd" -> {
-          let pwd_ = fn() {
-            let #(_ok, _status, xs) = pwd()
-            charlist.to_string(xs) |> string.trim
-          }
-
-          let output =
-            shell.Output(
-              stdout: pwd_(),
-              stderr: "",
-              outcome: shell.Outcome(type_: Some("exit"), exit_code: Some(0)),
-              created_by: None,
-            )
-
-          response.ShellCallOutputItem(shell.ShellCallOutput(
-            call_id:,
-            max_output_length: Some(max_output_length),
-            output: [output],
-            id: None,
-            status: None,
-          ))
-        }
-        _ -> panic as "invaild shell command: "
+        list.prepend(
+          acc,
+          shell.new_shell_call_output(call_id, output)
+            |> response.ShellCallOutputItem,
+        )
       }
-      [shell_call_output, ..map_shell_call_outputs(rest)]
+      _ -> acc
     }
-    [] -> []
+  })
+}
+
+fn process_shell_commands(commands: List(String)) -> List(shell.Output) {
+  list.map(commands, run_safe_command)
+}
+
+fn run_safe_command(command: String) -> shell.Output {
+  case parse_safe_command(command) {
+    Ok(SafeCommand(program:, args:)) -> {
+      let #(_ok, status, xs) = run_command(program, args)
+      let text = charlist.to_string(xs) |> string.trim
+      shell.Output(
+        stdout: text,
+        stderr: "",
+        outcome: shell.Outcome(type_: Some("exit"), exit_code: Some(status)),
+        created_by: None,
+      )
+    }
+    Error(message) ->
+      shell.Output(
+        stdout: "",
+        stderr: message,
+        outcome: shell.Outcome(type_: Some("exit"), exit_code: Some(126)),
+        created_by: None,
+      )
   }
 }
 
-fn decode_output_message_text() -> decode.Decoder(String) {
-  use outputs <- decode.field("output", decode.list(decode_output_item_text()))
-  case first_non_empty_text(option.values(outputs)) {
-    Some(text) -> decode.success(text)
-    None -> decode.failure("", expected: "non-empty message output text")
-  }
-}
+fn parse_safe_command(command: String) -> Result(SafeCommand, String) {
+  let command = string.trim(command)
+  let forbidden_tokens = ["&&", ";", "||", "|", ">", "<", "$(", "`"]
 
-fn decode_output_item_text() -> decode.Decoder(Option(String)) {
-  use type_ <- decode.field("type", decode.string)
-  case type_ {
-    "message" ->
-      decode.at(["content"], decode.at([0], decode.at(["text"], decode.string)))
-      |> decode.map(Some)
-    _ -> decode.success(None)
-  }
-}
+  case
+    list.any(forbidden_tokens, fn(token) { string.contains(command, token) })
+  {
+    True ->
+      Error(
+        "Rejected unsafe shell command: "
+        <> command
+        <> ". Shell chaining, redirection, and substitution operators are not allowed.",
+      )
+    False -> {
+      let parts =
+        command
+        |> string.split(" ")
+        |> list.filter(fn(part) { part != "" })
 
-fn first_non_empty_text(items: List(String)) -> Option(String) {
-  case items {
-    [text, ..rest] ->
-      case string.trim(text) {
-        "" -> first_non_empty_text(rest)
-        _ -> Some(text)
+      case parts {
+        ["pwd"] -> Ok(SafeCommand(program: "/bin/pwd", args: []))
+        ["ls"] -> Ok(SafeCommand(program: "/bin/ls", args: []))
+        ["ls", "-l"] -> Ok(SafeCommand(program: "/bin/ls", args: ["-l"]))
+        ["ls", "-a"] -> Ok(SafeCommand(program: "/bin/ls", args: ["-a"]))
+        ["ls", "-la"] -> Ok(SafeCommand(program: "/bin/ls", args: ["-la"]))
+        ["ls", "-al"] -> Ok(SafeCommand(program: "/bin/ls", args: ["-al"]))
+        ["echo", ..rest] -> Ok(SafeCommand(program: "/bin/echo", args: rest))
+        ["printf", ..rest] ->
+          Ok(SafeCommand(program: "/usr/bin/printf", args: rest))
+        _ ->
+          Error(
+            "Rejected unsupported shell command: "
+            <> command
+            <> ". Only pwd, echo, printf, and ls variants are allowed.",
+          )
       }
-    [] -> None
+    }
   }
 }
 
-@external(erlang, "ffi", "pwd")
-fn pwd() -> #(Atom, Int, Charlist)
+// fn extract_output_message_text(messages: List(String)) -> String {
+//   list.fold(messages, "", fn(acc, output_text) {
+//     acc <> text
+//   })
+// }
+
+// fn decode_output_item_text() -> decode.Decoder(Option(String)) {
+//   use type_ <- decode.field("type", decode.string)
+//   case type_ {
+//     "message" ->
+//       decode.at(["content"], decode.at([0], decode.at(["text"], decode.string)))
+//       |> decode.map(Some)
+//     _ -> decode.success(None)
+//   }
+// }
+
+// fn first_non_empty_text(items: List(String)) -> Option(String) {
+//   case items {
+//     [text, ..rest] ->
+//       case string.trim(text) {
+//         "" -> first_non_empty_text(rest)
+//         _ -> Some(text)
+//       }
+//     [] -> None
+//   }
+// }
+
+@external(erlang, "ffi", "run_command")
+fn run_command(program: String, args: List(String)) -> #(Atom, Int, Charlist)

@@ -4,6 +4,7 @@
 import gleam/dynamic/decode
 import gleam/io
 import gleam/json.{type Json}
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import openai/client
 import openai/error.{type OpenAIError}
@@ -15,14 +16,6 @@ import openai/types/responses/tool
 import openai/types/responses/tool_choice
 import openai/types/responses/tools/function
 import openai/types/role
-
-type Hop1Response {
-  Hop1Response(id: String, calls: List(HoroscopeCall))
-}
-
-type HoroscopeCall {
-  HoroscopeCall(call_id: String, arguments: String)
-}
 
 /// Requires `OPENAI_API_KEY` to be set in the environment.
 pub fn main() -> Result(Nil, OpenAIError) {
@@ -54,10 +47,12 @@ pub fn main() -> Result(Nil, OpenAIError) {
 
   let horoscope_tool =
     function.new()
-    |> function.name("get_horoscope")
-    |> function.parameters(encode_parameters())
-    |> function.strict(True)
-    |> function.description("Get today's horoscope for an astrological sign")
+    |> function.with_name("get_horoscope")
+    |> function.with_parameters(encode_parameters())
+    |> function.with_strict(True)
+    |> function.with_description(
+      "Get today's horoscope for an astrological sign",
+    )
     |> tool.FunctionTool
 
   let get_horoscope = fn(sign: String) -> String {
@@ -77,30 +72,32 @@ pub fn main() -> Result(Nil, OpenAIError) {
 
   // Build the initial user input for the first hop.
   let text = "What is my horoscope?  I am a Cancer"
-  let hop1 = [
-    message.new()
-    |> message.with_role(role.User)
-    |> message.with_content([
-      content.new_text(text)
-      |> content.TextContentItem,
-    ])
-    |> response.MessageItem,
-  ]
+  let hop1 =
+    [
+      message.new()
+      |> message.with_role(role.User)
+      |> message.with_content([
+        content.new_text(text)
+        |> content.TextContentItem,
+      ])
+      |> response.MessageItem,
+    ]
+    |> response.Items
   io.println("\nPrompt: " <> text)
 
   let request =
     responses.new()
     |> responses.with_model("gpt-5-mini")
-    |> responses.with_input(response.Items(hop1))
+    |> responses.with_input(hop1)
     |> responses.with_tool_choice(tool_choice.options("required"))
     // Define the list of callable tools for the model
     |> responses.with_tools([horoscope_tool])
 
   // 2. Prompt the model with tools defined
-  let assert Ok(hop1_response) =
-    responses.create_with_decoder(client, request, decode_hop1_response())
+  let assert Ok(#(id, input_output)) =
+    responses.create_with_decoder(client, request, response.decode_id_output())
   let function_call_output =
-    hop1_response.calls
+    input_output
     |> map_horoscope_outputs(get_horoscope)
     |> response.Items
 
@@ -109,7 +106,7 @@ pub fn main() -> Result(Nil, OpenAIError) {
     responses.new()
     |> responses.with_model("gpt-5-mini")
     |> responses.with_instructions(instructions)
-    |> responses.with_previous_response_id(hop1_response.id)
+    |> responses.with_previous_response_id(id)
     |> responses.with_input(function_call_output)
     // Define the list of callable tools for the model
     |> responses.with_tools([horoscope_tool])
@@ -120,48 +117,27 @@ pub fn main() -> Result(Nil, OpenAIError) {
   Ok(Nil)
 }
 
-fn decode_hop1_response() -> decode.Decoder(Hop1Response) {
-  use id <- decode.field("id", decode.string)
-  use output <- decode.field(
-    "output",
-    decode.list(decode_horoscope_call_output_item()),
-  )
-  decode.success(Hop1Response(id:, calls: option.values(output)))
-}
-
-fn decode_horoscope_call_output_item() -> decode.Decoder(Option(HoroscopeCall)) {
-  use type_ <- decode.field("type", decode.string)
-  case type_ {
-    "function_call" -> {
-      use name <- decode.field("name", decode.string)
-      case name {
-        "get_horoscope" -> {
-          use call_id <- decode.field("call_id", decode.string)
-          use arguments <- decode.field("arguments", decode.string)
-          decode.success(Some(HoroscopeCall(call_id:, arguments:)))
-        }
-        _ -> decode.success(None)
-      }
-    }
-    _ -> decode.success(None)
-  }
-}
-
 fn map_horoscope_outputs(
-  calls: List(HoroscopeCall),
+  items: List(response.InputOutput),
   get_horoscope: fn(String) -> String,
 ) -> List(response.InputOutput) {
-  case calls {
-    [HoroscopeCall(call_id:, arguments:), ..rest] -> [
-      function.default_function_call_output(
+  list.fold(items, [], fn(acc, item) {
+    case item {
+      response.FunctionCallItem(function.FunctionCall(
         call_id:,
-        output: function.JsonString(get_horoscope(arguments)),
-      )
+        arguments:,
+        name: "get_horoscope",
+        ..,
+      )) -> [
+        function.new_function_call_output(
+          call_id,
+          output: function.JsonString(get_horoscope(arguments)),
+        )
         |> response.FunctionCallOutputItem,
-      ..map_horoscope_outputs(rest, get_horoscope)
-    ]
-    [] -> []
-  }
+      ]
+      _ -> acc
+    }
+  })
 }
 
 fn decode_output_message_text() -> decode.Decoder(String) {

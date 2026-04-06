@@ -114,21 +114,21 @@ pub fn encode_function_call_output(
   |> json.object
 }
 
-pub fn default_function_call_output(
+pub fn new_function_call_output(
   call_id call_id: String,
   output output: Output,
 ) -> FunctionCallOutput {
   FunctionCallOutput(call_id:, output:, id: None, status: None)
 }
 
-pub fn function_call_output_id(
+pub fn with_function_call_output_id(
   config: FunctionCallOutput,
   id: String,
 ) -> FunctionCallOutput {
   FunctionCallOutput(..config, id: Some(id))
 }
 
-pub fn function_call_output_status(
+pub fn with_function_call_output_status(
   config: FunctionCallOutput,
   status: Status,
 ) -> FunctionCallOutput {
@@ -209,22 +209,22 @@ pub fn new() -> Function {
   )
 }
 
-pub fn name(function: Function, name: String) {
+pub fn with_name(function: Function, name: String) {
   Function(..function, name:)
 }
 
-pub fn description(function: Function, description: String) {
+pub fn with_description(function: Function, description: String) {
   Function(..function, description: Some(description))
 }
 
-pub fn parameters(function: Function, parameters: Json) {
+pub fn with_parameters(function: Function, parameters: Json) {
   Function(..function, parameters:)
 }
 
-pub fn strict(function: Function, strict: Bool) {
+pub fn with_strict(function: Function, strict: Bool) {
   Function(..function, strict:)
 }
 
-pub fn defer_loading(function: Function, defer_loading: Bool) {
+pub fn with_defer_loading(function: Function, defer_loading: Bool) {
   Function(..function, defer_loading: Some(defer_loading))
 }

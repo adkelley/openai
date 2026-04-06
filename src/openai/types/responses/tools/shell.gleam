@@ -409,6 +409,40 @@ pub fn decode_shell_call_output() -> Decoder(ShellCallOutput) {
   ))
 }
 
+pub fn new_shell_call_output(
+  call_id: String,
+  output: List(Output),
+) -> ShellCallOutput {
+  ShellCallOutput(
+    id: None,
+    call_id: call_id,
+    output: output,
+    status: None,
+    max_output_length: None,
+  )
+}
+
+pub fn shell_call_output_with_id(
+  config: ShellCallOutput,
+  id: String,
+) -> ShellCallOutput {
+  ShellCallOutput(..config, id: Some(id))
+}
+
+pub fn shell_call_output_with_status(
+  config: ShellCallOutput,
+  status: Status,
+) -> ShellCallOutput {
+  ShellCallOutput(..config, status: Some(status))
+}
+
+pub fn shell_call_output_with_max_output_length(
+  config: ShellCallOutput,
+  max_output_length: Int,
+) -> ShellCallOutput {
+  ShellCallOutput(..config, max_output_length: Some(max_output_length))
+}
+
 pub type Output {
   Output(
     /// Standard output emitted by the shell command.
