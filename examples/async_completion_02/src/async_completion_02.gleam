@@ -28,20 +28,20 @@ pub fn main() -> Result(Nil, OpenAIError) {
   let result = completions.stream_create(client, config, messages)
   case result {
     Ok(stream_handler) -> loop(stream_handler)
-    Error(e) -> Error(e) |> echo
+    Error(e) -> Error(e)
   }
 }
 
 // Recursively pulls and prints chunks from the active stream handler until completion.
 fn loop(handler: completions.StreamHandler) -> Result(Nil, OpenAIError) {
-  case completions.stream_create_handler_with_decoder(
-    handler,
-    decode_first_completion_chunk_text(),
-  ) {
+  case
+    completions.stream_create_handler_with_decoder(
+      handler,
+      decode_first_completion_chunk_text(),
+    )
+  {
     Ok(completions.DecodedStreamChunk(text_chunks)) -> {
-      list.map(text_chunks, fn(text) {
-        io.print(text)
-      })
+      list.map(text_chunks, fn(text) { io.print(text) })
       loop(handler)
     }
     Ok(completions.DecodedStreamStart(handler_)) -> loop(handler_)

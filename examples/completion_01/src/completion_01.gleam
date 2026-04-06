@@ -1,14 +1,14 @@
 /// Issues a single chat completion request and prints the assistant response.
-import gleam/dynamic/decode
 import gleam/io
 import gleam/list
 import openai/client
 import openai/completions
+import openai/error.{type OpenAIError}
 import openai/types/completion
 import openai/types/role.{System, User}
 
 /// Sends a prompt to the Chat Completions API and writes the reply to stdout.
-pub fn main() -> Nil {
+pub fn main() -> Result(Nil, OpenAIError) {
   let assert Ok(client) = client.new()
 
   let prompt = "Why is the sky blue?"
@@ -21,10 +21,10 @@ pub fn main() -> Nil {
 
   io.println("No Streaming (typed response): ")
   let assert Ok(chat_completion) = completions.create(client, config, messages)
-  let content =
-    chat_completion.choices
-    |> extract_content
-  io.println(content)
+  list.fold(chat_completion.choices, "", fn(acc, choice) {
+    acc <> choice.message.content
+  })
+  |> io.println()
 
   let prompt = "Give me a three paragraph poem about rain."
   let config = completion.new()
@@ -34,28 +34,16 @@ pub fn main() -> Nil {
 
   io.println("\nPrompt: " <> prompt)
   io.println("No Streaming (custom decoder): ")
-  let assert Ok(content) =
+  let assert Ok(messages) =
     completions.create_with_decoder(
       client,
       config,
       messages,
-      decode_first_chat_completion_text(),
+      completion.decode_messages(),
     )
-  io.println(content)
 
-  Nil
-}
+  list.fold(messages, "", fn(acc, message) { acc <> message.content })
+  |> io.println()
 
-fn extract_content(choices: List(completion.CompletionChoice)) -> String {
-  choices
-  |> list.fold("", fn(acc, choice) { acc <> choice.message.content })
-}
-
-fn decode_first_chat_completion_text() -> decode.Decoder(String) {
-  let decode_first_choice = fn() {
-    use content <- decode.subfield(["message", "content"], decode.string)
-    decode.success(content)
-  }
-
-  decode.at(["choices"], decode.at([0], decode_first_choice()))
+  Ok(Nil)
 }

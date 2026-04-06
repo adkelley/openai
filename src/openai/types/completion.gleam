@@ -239,7 +239,16 @@ pub type CompletionChoice {
   )
 }
 
-fn decode_completion_choice() {
+pub fn decode_completion_choices() -> decode.Decoder(List(CompletionChoice)) {
+  use choices <- decode.field("choices", completion_choices_decoder())
+  decode.success(choices)
+}
+
+fn completion_choices_decoder() -> decode.Decoder(List(CompletionChoice)) {
+  decode.list(decode_completion_choice())
+}
+
+fn decode_completion_choice() -> decode.Decoder(CompletionChoice) {
   use finish_reason <- decode.optional_field(
     "finish_reason",
     None,
@@ -253,6 +262,13 @@ fn decode_completion_choice() {
   )
   use message <- decode.field("message", decode_message())
   decode.success(CompletionChoice(index:, message:, finish_reason:, logprobs:))
+}
+
+pub fn decode_messages() -> decode.Decoder(List(Message)) {
+  decode.at(
+    ["choices"],
+    decode.list(decode.at(["message"], decode_message())),
+  )
 }
 
 pub type CompletionTokenDetails {
@@ -373,10 +389,7 @@ pub fn decode_chat_completion() {
   use id <- decode.field("id", decode.string)
   use object <- decode.field("object", decode.string)
   use created <- decode.field("created", decode.int)
-  use choices <- decode.field(
-    "choices",
-    decode.list(decode_completion_choice()),
-  )
+  use choices <- decode.field("choices", completion_choices_decoder())
   use usage <- decode.field("usage", decode_usage())
   use model <- decode.field("model", decode.string)
   use service_tier <- decode.optional_field(
